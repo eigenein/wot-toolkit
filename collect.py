@@ -27,10 +27,14 @@ def main():
     writer.writeheader()
 
     start_time = time.time()
+    tanks_exported = 0
+
     for account_id in itertools.count(args.start, args.step):
-        collect_account(session, account_id, writer, args.min_battles)
-        aps = account_id / (time.time() - start_time)
-        print("%.1f a/s - %.0f a/h - %.0f a/d" % (aps, aps * 3600.0, aps * 86400.0))
+        tanks_exported += collect_account(session, account_id, writer, args.min_battles)
+        time_elapsed = time.time() - start_time
+        aps = account_id / time_elapsed
+        tps = tanks_exported / time_elapsed
+        print("%.1f a/s - %.0f a/h - %.0f a/d - %.1f t/h" % (aps, aps * 3600.0, aps * 86400.0, tps * 3600.0))
 
 
 def collect_tanks(session):
@@ -53,7 +57,7 @@ def collect_account(session, account_id, writer, min_battles):
     data = response.json()["data"][str(account_id)]
     if data is None:
         print("[NULL] %d" % account_id)
-        return
+        return 0
 
     row = {
         str(d["tank_id"]): "%.3f" % (d["statistics"]["wins"] / d["statistics"]["battles"])
@@ -64,6 +68,8 @@ def collect_account(session, account_id, writer, min_battles):
 
     print("[ OK ] %d" % account_id)
     writer.writerow(row)
+
+    return len(row) - 1
 
 
 def file_type(arg):
