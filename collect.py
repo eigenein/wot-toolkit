@@ -32,7 +32,7 @@ def main():
     for account_id in itertools.count(args.start, args.step):
         tanks_exported += collect_account(session, account_id, writer, args.min_battles)
         time_elapsed = time.time() - start_time
-        aps = account_id / time_elapsed
+        aps = (account_id - args.start) / time_elapsed
         tps = tanks_exported / time_elapsed
         print("%.1f a/s - %.0f a/h - %.0f a/d - %.1f t/h" % (aps, aps * 3600.0, aps * 86400.0, tps * 3600.0))
 
