@@ -46,26 +46,26 @@ def main(args):
     y = (y - mean) * r
     print("[INFO] Y: %s" % y)
 
-    x = numpy.random.rand(num_tanks, args.num_features)
+    x = 0.001 * numpy.random.rand(num_tanks, args.num_features)
     print("[INFO] X shape: %r." % (x.shape, ))
-    theta = numpy.random.rand(args.num_accounts, args.num_features)
+    theta = 0.001 * numpy.random.rand(args.num_accounts, args.num_features)
     print("[INFO] Theta shape: %r." % (theta.shape, ))
 
     alpha, previous_cost = 0.001, float("+inf")
 
     print("[INFO] Gradient descent.")
     for i in range(args.num_iterations):
-        x, theta = do_step(x, theta, y, r, args.lambda_, alpha)
-        current_cost = cost(x, theta, y, r, args.lambda_)
+        x_new, theta_new = do_step(x, theta, y, r, args.lambda_, alpha)
+        current_cost = cost(x_new, theta_new, y, r, args.lambda_)
 
-        if i % 1000 == 0:
+        if i % 10 == 0:
             print("[INFO] Step #%d." % i)
-            print("[INFO] Previous cost: %.3f." % previous_cost)
-            print("[INFO] Cost: %.3f." % current_cost)
+            print("[INFO] Cost: %.3f (%.3f)." % (current_cost, previous_cost))
             print("[INFO] Alpha: %f." % alpha)
 
         if current_cost < previous_cost:
-            alpha *= 1.00  # TODO: 1.01
+            alpha *= 1.05
+            x, theta = x_new, theta_new
         else:
             print("[WARN] Step: #%d." % i)
             print("[WARN] Reset alpha: %f." % alpha)
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     parser.add_argument("--lambda", default=1.0, dest="lambda_", help="regularization parameter (default: %(default)s)", metavar="<lambda>", type=float)
     parser.add_argument("--num-features", default=16, dest="num_features", help="number of features (default: %(default)s)", metavar="<number of features>", type=int)
     parser.add_argument("--num-accounts", default=500000, dest="num_accounts", help="number of accounts to read (default: %(default)s)", metavar="<number of accounts>", type=int)
-    parser.add_argument("--num-iterations", default=1000000, dest="num_iterations", help="number of gradient descent iterations (default: %(default)s)", metavar="<number of iterations>", type=int)
+    parser.add_argument("--num-iterations", default=100, dest="num_iterations", help="number of gradient descent iterations (default: %(default)s)", metavar="<number of iterations>", type=int)
     try:
         main(parser.parse_args())
     except KeyboardInterrupt:
