@@ -5,6 +5,7 @@ import sys; sys.dont_write_bytecode = True
 
 import argparse
 import json
+import operator
 
 import numpy
 import requests
@@ -14,6 +15,7 @@ def main(args):
     print("[INFO] Loading profile.")
     profile = json.load(args.profile)
     x = numpy.array(profile["x"])
+    num_tanks = x.shape[0]
     mean = numpy.array(profile["mean"])
 
     print("[INFO] Get tanks.")
@@ -25,9 +27,9 @@ def main(args):
 
     print("[INFO] Loading user stats.")
     stats = json.load(args.stats)
-    y = numpy.zeros((x.shape[0], 1))
+    y = numpy.zeros((num_tanks, 1))
     r = numpy.zeros(y.shape)
-    for i in range(y.shape[0]):
+    for i in range(num_tanks):
         tank_id = profile["tanks"][i]
         tank_name = tank_names[tank_id]
         if tank_name in stats:
@@ -65,6 +67,15 @@ def main(args):
     print("[ OK ] Theta: %r" % theta)
     print("[INFO] Cost: %.3f." % current_cost)
 
+    print("[INFO] Predict.")
+    p = x.dot(theta.T) + mean
+    p = {tank_names[profile["tanks"][i]]: p[i][0] for i in range(num_tanks)}
+    p = sorted(p.items(), key=operator.itemgetter(1), reverse=True)
+
+    for i, (name, rating) in enumerate(p):
+        print("%s: %.1f%% (actual: %.1f%%)" % (name, rating * 100.0, (y[i][0] + mean[i][0]) * 100.0), file=args.output)
+    print("[ OK ] Written output.")
+
 
 def cost(x, theta, y, r, lambda_):
     return (((x.dot(theta.T) - y) * r) ** 2).sum() / 2.0 + lambda_ * (theta ** 2).sum() / 2.0
@@ -80,4 +91,5 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--profile", dest="profile", help="learned profile", metavar="<profile.json>", required=True, type=argparse.FileType("rt"))
     parser.add_argument(dest="stats", help="user stats", metavar="<user.json>", type=argparse.FileType("rt"))
+    parser.add_argument("-o", "--output", dest="output", help="output", metavar="<output.txt>", type=argparse.FileType("wt"))
     main(parser.parse_args())
