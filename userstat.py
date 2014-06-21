@@ -31,7 +31,7 @@ def main(args):
     print("[ OK ] %d tanks." % len(data))
 
     print("[INFO] Dump ratings.")
-    json.dump({tanks[str(value["tank_id"])]: "%.3f" % (value["statistics"]["wins"] / value["statistics"]["battles"]) for value in data if value["statistics"]["battles"] >= 50}, args.output, indent=2)
+    json.dump({tanks[str(value["tank_id"])]: (value["statistics"]["wins"] / value["statistics"]["battles"]) for value in data if value["statistics"]["battles"] >= 50}, args.output, indent=2)
 
 
 if __name__ == "__main__":
