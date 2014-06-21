@@ -73,7 +73,7 @@ def main(args):
     p = sorted(p.items(), key=operator.itemgetter(1), reverse=True)
 
     for i, (name, rating) in enumerate(p):
-        print("%s: %.1f%% (actual: %.1f%%)" % (name, rating * 100.0, (y[i][0] + mean[i][0]) * 100.0), file=args.output)
+        print("%s: %.1f%% (actual: %.1f%%)" % (name, rating * 100.0, r[i][0] * (y[i][0] + mean[i][0]) * 100.0), file=args.output)
     print("[ OK ] Written output.")
 
 
