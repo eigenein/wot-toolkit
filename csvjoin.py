@@ -26,7 +26,7 @@ def main(args):
             print("[ OK ] Written header.")
         for i, row in enumerate(reader, start=1):
             args.writer.writerow(row)
-            if i % 1000 == 1:
+            if i % 1000 == 0:
                 print("[INFO] Row #%d." % i)
 
 

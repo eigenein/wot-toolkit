@@ -10,7 +10,7 @@ class CsvReaderGZipFileType:
 
     def __call__(self, filename):
         try:
-            return csv.reader(gzip.open(filename, "rt", encoding="utf-8"))
+            return csv.reader(gzip.open(filename, "rt", encoding="utf-8", newline=""))
         except Exception as ex:
             raise argparse.ArgumentTypeError(str(ex)) from ex
 
@@ -19,6 +19,6 @@ class CsvWriterGZipFileType:
 
     def __call__(self, filename):
         try:
-            return csv.writer(gzip.open(filename, "wt", compresslevel=6, encoding="utf-8"))
+            return csv.writer(gzip.open(filename, "wt", compresslevel=6, encoding="utf-8", newline=""))
         except Exception as ex:
             raise argparse.ArgumentTypeError(str(ex)) from ex
