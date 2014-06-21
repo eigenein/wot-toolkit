@@ -4,6 +4,7 @@
 import sys; sys.dont_write_bytecode = True
 
 import argparse
+import json
 
 import numpy
 import scipy.sparse
@@ -36,15 +37,11 @@ def main(args):
                 y[i, j] = float(rating)
                 r[i, j] = 1.0
 
-    print("[INFO] Y shape: %r." % (y.shape, ))
-    print("[INFO] R shape: %r." % (r.shape, ))
-
     print("[INFO] Feature normalization.")
     mean = y.sum(1) / r.sum(1)
     mean = numpy.nan_to_num(mean)
     mean = mean.reshape((mean.size, 1))
     y = (y - mean) * r
-    print("[INFO] Y: %s" % y)
 
     x = 0.001 * numpy.random.rand(num_tanks, args.num_features)
     print("[INFO] X shape: %r." % (x.shape, ))
@@ -54,25 +51,31 @@ def main(args):
     alpha, previous_cost = 0.001, float("+inf")
 
     print("[INFO] Gradient descent.")
-    for i in range(args.num_iterations):
-        x_new, theta_new = do_step(x, theta, y, r, args.lambda_, alpha)
-        current_cost = cost(x_new, theta_new, y, r, args.lambda_)
+    try:
+        for i in range(args.num_iterations):
+            x_new, theta_new = do_step(x, theta, y, r, args.lambda_, alpha)
+            current_cost = cost(x_new, theta_new, y, r, args.lambda_)
 
-        if i % 10 == 0:
             print("[INFO] Step #%d." % i)
             print("[INFO] Cost: %.3f (%.3f)." % (current_cost, previous_cost))
             print("[INFO] Alpha: %f." % alpha)
 
-        if current_cost < previous_cost:
-            alpha *= 1.05
-            x, theta = x_new, theta_new
-        else:
-            print("[WARN] Step: #%d." % i)
-            print("[WARN] Reset alpha: %f." % alpha)
-            print("[WARN] Cost: %.3f." % current_cost)
-            alpha *= 0.5
+            if current_cost < previous_cost:
+                alpha *= 1.05
+                x, theta = x_new, theta_new
+            else:
+                print("[WARN] Step: #%d." % i)
+                print("[WARN] Reset alpha: %f." % alpha)
+                print("[WARN] Cost: %.3f." % current_cost)
+                alpha *= 0.5
 
-        previous_cost = current_cost
+            previous_cost = current_cost
+    except KeyboardInterrupt:
+        print("[WARN] Gradient descent is interrupted by user.")
+
+    print("[INFO] Writing profile.")
+    json.dump({"x": x.tolist(), "theta": theta.tolist(), "mean": mean.tolist()}, args.profile, indent=2)
+    print("[ OK ] Written profile.")
 
 
 def cost(x, theta, y, r, lambda_):
@@ -89,6 +92,7 @@ def do_step(x, theta, y, r, lambda_, alpha):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(dest="stats", help="input file", metavar="<stats.csv.gz>", type=utils.CsvReaderGZipFileType())
+    parser.add_argument("--profile", dest="profile", help="output profile", metavar="<profile.json>", required=True, type=argparse.FileType("wt"))
     parser.add_argument("--lambda", default=1.0, dest="lambda_", help="regularization parameter (default: %(default)s)", metavar="<lambda>", type=float)
     parser.add_argument("--num-features", default=16, dest="num_features", help="number of features (default: %(default)s)", metavar="<number of features>", type=int)
     parser.add_argument("--num-accounts", default=500000, dest="num_accounts", help="number of accounts to read (default: %(default)s)", metavar="<number of accounts>", type=int)
