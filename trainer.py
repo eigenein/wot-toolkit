@@ -74,7 +74,7 @@ def main(args):
         print("[WARN] Gradient descent is interrupted by user.")
 
     print("[INFO] Writing profile.")
-    json.dump({"x": x.tolist(), "theta": theta.tolist(), "mean": mean.tolist()}, args.profile, indent=2)
+    json.dump({"x": x.tolist(), "theta": theta.tolist(), "mean": mean.tolist(), "tanks": tank_ids}, args.profile, indent=2)
     print("[ OK ] Written profile.")
 
 
