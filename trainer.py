@@ -21,7 +21,7 @@ def main(args):
     print("[INFO] Reading stats.")
     y_shape = (num_tanks, args.num_accounts)
     print("[INFO] Y shape: %r." % (y_shape, ))
-    account_ids, y, r = [], numpy.ndarray(y_shape), numpy.ndarray(y_shape)
+    account_ids, y, r = [], numpy.ndarray(y_shape), numpy.ndarray(y_shape)  # TODO: numpy.zeros
 
     for j, row in enumerate(args.stats):
         if j % 10000 == 0:
