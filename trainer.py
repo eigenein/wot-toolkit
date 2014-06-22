@@ -56,9 +56,7 @@ def main(args):
             x_new, theta_new = do_step(x, theta, y, r, args.lambda_, alpha)
             current_cost = cost(x_new, theta_new, y, r, args.lambda_)
 
-            print("[INFO] Step #%d." % i)
-            print("[INFO] Cost: %.3f (%.3f)." % (current_cost, previous_cost))
-            print("[INFO] Alpha: %f." % alpha)
+            print("[INFO] #%d | cost: %.3f | delta: %.6f | alpha: %f" % (i, current_cost, current_cost - previous_cost, alpha))
 
             if current_cost < previous_cost:
                 alpha *= 1.05
