@@ -81,7 +81,7 @@ def main(args):
     print("[ OK ] Max error: %.1f%%." % (100.0 * error.max()))
 
     for name, (predicted, actual) in p:
-        print("%s: %.1f%% (actual: %.1f%%)" % (name, predicted * 100.0, actual * 100.0), file=args.output)
+        print("%5.1f%% %5.1f%%  %s" % (predicted * 100.0, actual * 100.0, name), file=args.output)
     print("[ OK ] Written output.")
 
 
