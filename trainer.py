@@ -92,7 +92,7 @@ def do_step(x, theta, y, r, lambda_, alpha):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(dest="stats", help="input file", metavar="<stats.csv.gz>", type=utils.CsvReaderGZipFileType())
-    parser.add_argument("--profile", dest="profile", help="output profile", metavar="<profile.json>", required=True, type=argparse.FileType("wt"))
+    parser.add_argument("--profile", dest="profile", help="output profile", metavar="<profile.json>", required=True, type=utils.GZipFileType("wt"))
     parser.add_argument("--lambda", default=1.0, dest="lambda_", help="regularization parameter (default: %(default)s)", metavar="<lambda>", type=float)
     parser.add_argument("--num-features", default=16, dest="num_features", help="number of features (default: %(default)s)", metavar="<number of features>", type=int)
     parser.add_argument("--num-accounts", default=500000, dest="num_accounts", help="number of accounts to read (default: %(default)s)", metavar="<number of accounts>", type=int)
