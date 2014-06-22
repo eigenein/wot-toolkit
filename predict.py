@@ -32,6 +32,8 @@ def main(args):
     for i in range(num_tanks):
         tank_id = profile["tanks"][i]
         tank_name = tank_names[tank_id]
+        if tank_name == args.exclude:
+            continue
         if tank_name in stats:
             rating = stats[tank_name]
             y[i][0] = rating - mean[i][0]
@@ -70,8 +72,12 @@ def main(args):
     print("[INFO] Predict.")
     p = x.dot(theta.T)
     error = numpy.abs((p - y) * r)
-    p = [(tank_names[profile["tanks"][i]], (p[i][0] + mean[i][0], r[i][0] * (y[i][0] + mean[i][0]))) for i in range(num_tanks)]
-    p = sorted(p, key=operator.itemgetter(1), reverse=True)
+    p = {tank_names[profile["tanks"][i]]: (p[i][0] + mean[i][0], r[i][0] * (y[i][0] + mean[i][0])) for i in range(num_tanks)}
+
+    if args.exclude:
+        print("[ OK ] %s: %.1f%%." % (args.exclude, p[args.exclude][0] * 100.0))
+
+    p = sorted(p.items(), key=operator.itemgetter(1), reverse=True)
     print("[ OK ] Max error: %.1f%%." % (100.0 * error.max()))
 
     for name, (predicted, actual) in p:
@@ -94,4 +100,5 @@ if __name__ == "__main__":
     parser.add_argument("--profile", dest="profile", help="learned profile", metavar="<profile.json>", required=True, type=argparse.FileType("rt"))
     parser.add_argument(dest="stats", help="user stats", metavar="<user.json>", type=argparse.FileType("rt"))
     parser.add_argument("-o", "--output", dest="output", help="output", metavar="<output.txt>", type=argparse.FileType("wt"))
+    parser.add_argument("--exclude", default=None, dest="exclude", help="exclude tank from learning", metavar="<tank name>")
     main(parser.parse_args())
