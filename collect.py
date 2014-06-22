@@ -14,10 +14,10 @@ import requests
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--output", dest="output", required=True, type=file_type)
-    parser.add_argument("-b", "--min-battles", default=50, dest="min_battles", type=int)
-    parser.add_argument("--start", default=1, dest="start", type=int)
-    parser.add_argument("--step", default=1, dest="step", type=int)
+    parser.add_argument("-o", "--output", dest="output", metavar="<stats.csv>", required=True, type=file_type)
+    parser.add_argument("-b", "--min-battles", default=50, dest="min_battles", metavar="<number of battles>", type=int)
+    parser.add_argument("--start", default=1, dest="start", metavar="<start ID>", type=int)
+    parser.add_argument("--step", default=1, dest="step", metavar="<step>", type=int)
     args = parser.parse_args()
 
     session = requests.Session()
