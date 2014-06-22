@@ -112,7 +112,7 @@ def related(x, i):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--profile", dest="profile", help="learned profile", metavar="<profile.json>", required=True, type=argparse.FileType("rt"))
+    parser.add_argument("--profile", dest="profile", help="learned profile", metavar="<profile.json>", required=True, type=utils.GZipFileType("rt"))
     parser.add_argument(dest="stats", help="user stats", metavar="<user.json>", type=argparse.FileType("rt"))
     parser.add_argument("-o", "--output", dest="output", help="output", metavar="<output.txt>", type=argparse.FileType("wt"))
     parser.add_argument("--exclude", default=None, dest="exclude", help="exclude tank from learning", metavar="<tank name>")
