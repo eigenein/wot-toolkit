@@ -39,6 +39,9 @@ def main(args):
             y[i][0] = rating - mean[i][0]
             r[i][0] = 1.0
             print("[ OK ] %s (id=%s): %.3f (y=%.3f)" % (tank_name, tank_id, rating, y[i][0]))
+            distances = related(x, i)
+            for distance, j in distances:
+                print("[INFO] Related: %s (%.1f)." % (tank_names[profile["tanks"][j]], distance))
 
     theta = 0.001 * numpy.random.rand(1, x.shape[1])
     print("[INFO] Theta shape: %r." % (theta.shape, ))
@@ -93,6 +96,18 @@ def do_step(x, theta, y, r, lambda_, alpha):
     diff = (x.dot(theta.T) - y) * r
     theta_grad = diff.T.dot(x) + lambda_ * theta
     return theta - alpha * theta_grad
+
+
+def related(x, i):
+    num_tanks = x.shape[0]
+    distances = []
+    for j in range(num_tanks):
+        if i == j:
+            continue
+        distance = ((x[i] - x[j]) ** 2).sum()
+        distances.append((distance, j))
+    distances = sorted(distances)
+    return distances[:3]
 
 
 if __name__ == "__main__":
