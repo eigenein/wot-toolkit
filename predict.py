@@ -43,7 +43,7 @@ def main(args):
             print("[ OK ] %s (id=%s): %.3f (y=%.3f)" % (tank_name, tank_id, rating, y[i][0]))
             distances = related(x, i)
             for distance, j in distances:
-                print("[INFO] Related: %s (%.1f)." % (tank_names[profile["tanks"][j]], distance))
+                print("[INFO] %.1f | %s" % (distance, tank_names[profile["tanks"][j]]))
 
     theta = 0.001 * numpy.random.rand(1, x.shape[1])
     print("[INFO] Theta shape: %r." % (theta.shape, ))
