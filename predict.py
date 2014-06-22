@@ -41,7 +41,7 @@ def main(args):
     theta = 0.001 * numpy.random.rand(1, x.shape[1])
     print("[INFO] Theta shape: %r." % (theta.shape, ))
 
-    alpha, lambda_, previous_cost = 0.001, 1.0, float("+inf")
+    alpha, lambda_, previous_cost = 0.001, 0.0, float("+inf")
 
     print("[INFO] Gradient descent.")
     for i in range(100000):
@@ -68,12 +68,14 @@ def main(args):
     print("[INFO] Cost: %.3f." % current_cost)
 
     print("[INFO] Predict.")
-    p = x.dot(theta.T) + mean
-    p = {tank_names[profile["tanks"][i]]: p[i][0] for i in range(num_tanks)}
-    p = sorted(p.items(), key=operator.itemgetter(1), reverse=True)
+    p = x.dot(theta.T)
+    error = numpy.abs((p - y) * r)
+    p = [(tank_names[profile["tanks"][i]], (p[i][0] + mean[i][0], r[i][0] * (y[i][0] + mean[i][0]))) for i in range(num_tanks)]
+    p = sorted(p, key=operator.itemgetter(1), reverse=True)
+    print("[ OK ] Max error: %.1f%%." % (100.0 * error.max()))
 
-    for i, (name, rating) in enumerate(p):
-        print("%s: %.1f%% (actual: %.1f%%)" % (name, rating * 100.0, r[i][0] * (y[i][0] + mean[i][0]) * 100.0), file=args.output)
+    for name, (predicted, actual) in p:
+        print("%s: %.1f%% (actual: %.1f%%)" % (name, predicted * 100.0, actual * 100.0), file=args.output)
     print("[ OK ] Written output.")
 
 
