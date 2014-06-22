@@ -3,6 +3,7 @@
 
 import argparse
 import json
+import sys
 
 import requests
 
@@ -37,5 +38,5 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(dest="search", help="user name", metavar="<search>")
-    parser.add_argument("-o", "--output", dest="output", help="output", metavar="<output.json>", type=argparse.FileType("wt"))
+    parser.add_argument("-o", "--output", default=sys.stdout, dest="output", help="output", metavar="<output.json>", type=argparse.FileType("wt"))
     main(parser.parse_args())
