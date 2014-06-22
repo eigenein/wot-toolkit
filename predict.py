@@ -54,9 +54,7 @@ def main(args):
         current_cost = cost(x, theta_new, y, r, lambda_)
 
         if i % 100 == 0 or i < 5:
-            print("[INFO] Step #%d." % i)
-            print("[INFO] Cost: %.6f (%.6f)." % (current_cost, previous_cost))
-            print("[INFO] Alpha: %f." % alpha)
+            print("[INFO] #%d | %.6f | %.6f | %f" % (i, current_cost, current_cost - previous_cost, alpha))
 
         if current_cost < previous_cost:
             alpha *= 1.05
