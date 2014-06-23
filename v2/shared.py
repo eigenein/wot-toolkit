@@ -3,7 +3,8 @@
 
 import base64
 import logging
+import sys
 
 exec(base64.b64decode(b"QVBQTElDQVRJT05fSUQgPSAiOGVkMDBhZTYzMTlkNmQyYmI3ODYxNmNiNGJiNDg5OWQi"))
 
-logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.DEBUG)
+logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.DEBUG, stream=sys.stderr)
