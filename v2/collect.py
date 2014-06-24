@@ -4,6 +4,7 @@
 import sys; sys.dont_write_bytecode = True
 
 import argparse
+import concurrent.futures
 import datetime
 import itertools
 import json
@@ -17,15 +18,21 @@ import shared
 
 
 LIMIT = 100
-SLEEP_TIME = [None, 1.0, 60.0, 600.0, 3600.0]
+MAX_WORKERS = 4
 
 
-def main(args):
+def main(args, executor):
     session = requests.Session()
 
     start_time = time.time()
-    for account_id in itertools.count(args.start, LIMIT):
-        data = get_account_tanks(session, range(account_id, account_id + LIMIT))
+    for account_id in itertools.count(args.start, LIMIT * MAX_WORKERS):
+        data = {}
+        futures = [
+            executor.submit(get_account_tanks, session, range(account_id + i * LIMIT, account_id + i * LIMIT + LIMIT))
+            for i in range(MAX_WORKERS)
+        ]
+        for future in futures:
+            data.update(future.result())
         if not save_account_tanks(args.output, data, args.min_battles):
             logging.info("Finished on account #%d.", account_id)
             break
@@ -39,26 +46,17 @@ def main(args):
 
 def get_account_tanks(session, id_range):
     logging.debug("Get account tanks: %r…", id_range)
-    for attempt in range(5):
-        if attempt:
-            logging.warning("Attempt #%d. Sleeping…", attempt)
-            time.sleep(SLEEP_TIME[attempt])
-        response = session.get(
-            "http://api.worldoftanks.ru/wot/account/tanks/",
-            params={
-                "application_id": shared.APPLICATION_ID,
-                "account_id": ",".join(map(str, id_range)),
-                "fields": "statistics,tank_id",
-            },
-        )
-        if response.status_code != requests.codes.ok:
-            logging.warning("Status code: %d.", response.status_code)
-            continue
-        payload = response.json()
-        if "data" not in payload:
-            logging.warning("No data.")
-            continue
-        return payload["data"]
+    response = session.get(
+        "http://api.worldoftanks.ru/wot/account/tanks/",
+        params={
+            "application_id": shared.APPLICATION_ID,
+            "account_id": ",".join(map(str, id_range)),
+            "fields": "statistics,tank_id",
+        },
+    )
+    response.raise_for_status()
+    payload = response.json()
+    return payload["data"]
 
 
 def save_account_tanks(output, data, min_battles):
@@ -93,6 +91,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     try:
-        main(args)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            main(args, executor)
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
