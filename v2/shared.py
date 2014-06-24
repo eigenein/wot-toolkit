@@ -5,6 +5,7 @@ import argparse
 import base64
 import gzip
 import logging
+import lzma
 import sys
 
 exec(base64.b64decode(b"QVBQTElDQVRJT05fSUQgPSAiOGVkMDBhZTYzMTlkNmQyYmI3ODYxNmNiNGJiNDg5OWQi"))
