@@ -36,7 +36,7 @@ def main(args, executor):
         if not save_account_tanks(args.output, data, args.min_battles):
             logging.info("Finished on account #%d.", account_id)
             break
-        account_number = account_id - args.start + LIMIT
+        account_number = account_id - args.start + LIMIT * MAX_WORKERS
         aps, size = account_number / (time.time() - start_time), args.output.fileobj.tell()
         logging.info(
             "#%d | %.1f a/s | %.1f a/h | %.0f a/d | %.1fMiB | %.0f B/a",
