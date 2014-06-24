@@ -57,7 +57,8 @@ def make_request(session, id_range):
 
 def process_data(output, data):
     all_null = True
-    for account_id, vehicles in data.items():
+    data = sorted((int(account_id), vehicles) for account_id, vehicles in data.items())
+    for account_id, vehicles in data:
         account_id = int(account_id)
         if vehicles is None:
             logging.warning("Account #%d: null.", account_id)
