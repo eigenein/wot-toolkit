@@ -26,7 +26,7 @@ def main(args):
     start_time = time.time()
     for account_id in itertools.count(args.start, LIMIT):
         data = get_account_tanks(session, range(account_id, account_id + LIMIT))
-        if not save_account_tanks(args.output, data):
+        if not save_account_tanks(args.output, data, args.min_battles):
             logging.info("Finished on account #%d.", account_id)
             break
         account_number = account_id - args.start + LIMIT
@@ -60,7 +60,7 @@ def get_account_tanks(session, id_range):
         return payload["data"]
 
 
-def save_account_tanks(output, data):
+def save_account_tanks(output, data, min_battles):
     all_null = True
     # Order data by account ID.
     data = sorted(
@@ -73,6 +73,8 @@ def save_account_tanks(output, data):
             continue
         all_null, obj = False, [account_id]
         for vehicle in vehicles:
+            if vehicle["statistics"]["battles"] < min_battles:
+                continue
             obj.extend([
                 vehicle["tank_id"],
                 vehicle["statistics"]["wins"],
@@ -85,7 +87,8 @@ def save_account_tanks(output, data):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Collects user statistics.")
     parser.add_argument("--start", default=1, dest="start", help="start account ID", metavar="<account ID>", type=int)
-    parser.add_argument("-o", "--output", help="output file", metavar="<output.msgpack.gz>", required=True, type=shared.GZipFileType("wb"))
+    parser.add_argument("-o", "--output", dest="output", help="output file", metavar="<output.msgpack.gz>", required=True, type=shared.GZipFileType("wb"))
+    parser.add_argument("--min-battles", default=50, dest="min_battles", help="minimum number of battles (default: %(default)s)", metavar="<number of battles>", type=int)
     args = parser.parse_args()
 
     try:
