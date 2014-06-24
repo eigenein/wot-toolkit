@@ -48,6 +48,7 @@ def get_account_tanks(session, id_range):
             params={
                 "application_id": shared.APPLICATION_ID,
                 "account_id": ",".join(map(str, id_range)),
+                "fields": "statistics,tank_id",
             },
         )
         if response.status_code != requests.codes.ok:
