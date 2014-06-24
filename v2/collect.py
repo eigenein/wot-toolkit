@@ -65,11 +65,11 @@ def process_data(output, data):
             continue
         all_null = False
         output.write(msgpack.packb({
-            "account_id": account_id,
-            "vehicles": [{
-                "tank_id": vehicle["tank_id"],
-                "battles": vehicle["statistics"]["battles"],
-                "wins": vehicle["statistics"]["wins"],
+            "aid": account_id,
+            "ts": [{
+                "tid": vehicle["tank_id"],
+                "bs": vehicle["statistics"]["battles"],
+                "ws": vehicle["statistics"]["wins"],
             } for vehicle in vehicles],
         }))
     return not all_null
