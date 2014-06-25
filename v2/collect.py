@@ -11,6 +11,7 @@ import concurrent.futures
 import datetime
 import json
 import logging
+import random
 import time
 
 import msgpack
@@ -23,8 +24,10 @@ LIMIT = 100
 
 
 def main(args, executor):
-    session = requests.Session()
     max_workers = args.max_workers
+    http_adapter = requests.adapters.HTTPAdapter(pool_connections=max_workers, pool_maxsize=max_workers)
+    session = requests.Session()
+    session.mount('http://', http_adapter)
 
     start_time, real_account_number = time.time(), 0
     for account_id in range(args.start, args.end, LIMIT * max_workers):
@@ -49,18 +52,30 @@ def main(args, executor):
 
 
 def get_account_tanks(session, id_range):
+    payload = None
     logging.debug("Get account tanks: %r…", id_range)
-    response = session.get(
-        "http://api.worldoftanks.ru/wot/account/tanks/",
-        params={
-            "application_id": shared.APPLICATION_ID,
-            "account_id": ",".join(map(str, id_range)),
-            "fields": "statistics,tank_id",
-        },
-    )
-    response.raise_for_status()
-    payload = response.json()
-    return payload["data"]
+    for attempt in range(5):
+        if attempt:
+            sleep_time = random.random() + 0.1
+            logging.warning("Sleeping for %.2fs.", sleep_time)
+            time.sleep(sleep_time)
+        response = session.get(
+            "http://api.worldoftanks.ru/wot/account/tanks/",
+            params={
+                "application_id": shared.APPLICATION_ID,
+                "account_id": ",".join(map(str, id_range)),
+                "fields": "statistics,tank_id",
+            },
+        )
+        if response.status_code != requests.codes.ok:
+            logging.warning("Status code: %d.", response.status_code)
+            continue
+        payload = response.json()
+        if payload["status"] != "ok":
+            logging.warning("Request failed: %r.", payload)
+            continue
+        return payload["data"]
+    raise ValueError("All attempts failed. Last payload: %r.", payload)
 
 
 def save_account_tanks(output, data, min_battles):
