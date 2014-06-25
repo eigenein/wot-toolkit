@@ -3,10 +3,12 @@
 
 import sys; sys.dont_write_bytecode = True
 
+if sys.hexversion < 0x03040000:
+    raise ValueError("Python 3.4+ is required.")
+
 import argparse
 import concurrent.futures
 import datetime
-import itertools
 import json
 import logging
 import time
@@ -25,7 +27,7 @@ def main(args, executor):
     session = requests.Session()
 
     start_time = time.time()
-    for account_id in itertools.count(args.start, LIMIT * MAX_WORKERS):
+    for account_id in range(args.start, args.end, LIMIT * MAX_WORKERS):
         data = {}
         futures = [
             executor.submit(get_account_tanks, session, range(account_id + i * LIMIT, account_id + i * LIMIT + LIMIT))
@@ -33,15 +35,16 @@ def main(args, executor):
         ]
         for future in futures:
             data.update(future.result())
-        if not save_account_tanks(args.output, data, args.min_battles):
-            logging.info("Finished on account #%d.", account_id)
-            break
+        save_account_tanks(args.output, data, args.min_battles)
         account_number = account_id - args.start + LIMIT * MAX_WORKERS
         aps, size = account_number / (time.time() - start_time), args.output.fileobj.tell()
         logging.info(
             "#%d | %.1f a/s | %.1f a/h | %.0f a/d | %.1fMiB | %.0f B/a",
             account_id, aps, aps * 3600.0, aps * 86400.0, size / 1048576.0, size / account_number,
         )
+
+    work_time = time.time() - start_time
+    logging.info("Done in %.0fs / %0.1fh.", work_time, work_time / 3600.0)
 
 
 def get_account_tanks(session, id_range):
@@ -84,10 +87,42 @@ def save_account_tanks(output, data, min_battles):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Collects user statistics.")
-    parser.add_argument("--start", default=1, dest="start", help="start account ID", metavar="<account ID>", type=int)
-    parser.add_argument("-o", "--output", dest="output", help="output file", metavar="<output.msgpack.gz>", required=True, type=shared.GZipFileType("wb"))
-    parser.add_argument("--min-battles", default=50, dest="min_battles", help="minimum number of battles (default: %(default)s)", metavar="<number of battles>", type=int)
+    parser = argparse.ArgumentParser(
+        description="Collects user statistics.",
+    )
+    parser.add_argument(
+        "--start",
+        default=1,
+        dest="start",
+        help="start account ID (default: %(default)s)",
+        metavar="<account ID>",
+        type=int,
+    )
+    parser.add_argument(
+        "--end",
+        default=3000,
+        dest="end",
+        help="end account ID (default: %(default)s)",
+        metavar="<account ID>",
+        type=int,
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        dest="output",
+        help="output file",
+        metavar="<output.msgpack.gz>",
+        required=True,
+        type=shared.GZipFileType("wb"),
+    )
+    parser.add_argument(
+        "--min-battles",
+        default=50,
+        dest="min_battles",
+        help="minimum number of battles (default: %(default)s)",
+        metavar="<number of battles>",
+        type=int,
+    )
     args = parser.parse_args()
 
     try:
