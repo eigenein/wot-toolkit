@@ -20,23 +20,23 @@ import shared
 
 
 LIMIT = 100
-MAX_WORKERS = 4
 
 
 def main(args, executor):
     session = requests.Session()
+    max_workers = args.max_workers
 
     start_time, real_account_number = time.time(), 0
-    for account_id in range(args.start, args.end, LIMIT * MAX_WORKERS):
+    for account_id in range(args.start, args.end, LIMIT * max_workers):
         data = {}
         futures = [
             executor.submit(get_account_tanks, session, range(account_id + i * LIMIT, account_id + i * LIMIT + LIMIT))
-            for i in range(MAX_WORKERS)
+            for i in range(max_workers)
         ]
         for future in futures:
             data.update(future.result())
         real_account_number += save_account_tanks(args.output, data, args.min_battles)
-        account_number = account_id - args.start + LIMIT * MAX_WORKERS
+        account_number = account_id - args.start + LIMIT * max_workers
         aps, size = account_number / (time.time() - start_time), args.output.fileobj.tell()
         logging.info(
             "#%d | %.1f a/s | %.1f a/h | %.0f a/d | %.1fMiB | %.0f B/a",
@@ -125,10 +125,18 @@ if __name__ == "__main__":
         metavar="<number of battles>",
         type=int,
     )
+    parser.add_argument(
+        "--max-workers",
+        default=4,
+        dest="max_workers",
+        help="maximum number of HTTP workers (default: %(default)s)",
+        metavar="<number of workers>",
+        type=int,
+    )
     args = parser.parse_args()
 
     try:
-        with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as executor:
             main(args, executor)
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
