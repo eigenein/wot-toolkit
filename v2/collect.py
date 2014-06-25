@@ -26,7 +26,7 @@ MAX_WORKERS = 4
 def main(args, executor):
     session = requests.Session()
 
-    start_time = time.time()
+    start_time, real_account_number = time.time(), 0
     for account_id in range(args.start, args.end, LIMIT * MAX_WORKERS):
         data = {}
         futures = [
@@ -35,7 +35,7 @@ def main(args, executor):
         ]
         for future in futures:
             data.update(future.result())
-        save_account_tanks(args.output, data, args.min_battles)
+        real_account_number += save_account_tanks(args.output, data, args.min_battles)
         account_number = account_id - args.start + LIMIT * MAX_WORKERS
         aps, size = account_number / (time.time() - start_time), args.output.fileobj.tell()
         logging.info(
@@ -45,6 +45,7 @@ def main(args, executor):
 
     work_time = time.time() - start_time
     logging.info("Done in %.0fs / %0.1fh.", work_time, work_time / 3600.0)
+    logging.info("Account number: %d.", real_account_number)
 
 
 def get_account_tanks(session, id_range):
@@ -63,7 +64,7 @@ def get_account_tanks(session, id_range):
 
 
 def save_account_tanks(output, data, min_battles):
-    all_null = True
+    real_account_number = 0
     # Order data by account ID.
     data = sorted(
         (int(account_id), vehicles)
@@ -73,7 +74,8 @@ def save_account_tanks(output, data, min_battles):
         if vehicles is None:
             logging.warning("Account #%d: null.", account_id)
             continue
-        all_null, obj = False, [account_id]
+        real_account_number += 1
+        obj = [account_id]
         for vehicle in vehicles:
             if vehicle["statistics"]["battles"] < min_battles:
                 continue
@@ -83,7 +85,7 @@ def save_account_tanks(output, data, min_battles):
                 2 * vehicle["statistics"]["wins"] - vehicle["statistics"]["battles"]],
             )
         msgpack.pack(obj, output)
-    return not all_null
+    return real_account_number
 
 
 if __name__ == "__main__":
