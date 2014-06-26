@@ -87,7 +87,10 @@ def get_account_tanks(session, id_range):
             # Try to repeat request later.
             logging.warning("Sleeping for an hour.")
             time.sleep(3600.0)
-    raise ValueError("All attempts failed. Last payload: %r.", payload)
+        else:
+            # We don't know what to do.
+            break
+    raise ValueError("All attempts failed. Range: %r. Last payload: %r.", id_range, payload)
 
 
 def save_account_tanks(output, data, min_battles):
