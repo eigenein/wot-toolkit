@@ -59,14 +59,19 @@ def get_account_tanks(session, id_range):
     logging.debug("Get account tanks: %r…", id_range)
     for attempt in range(3):
         # Make API request.
-        response = session.get(
-            "http://api.worldoftanks.ru/wot/account/tanks/",
-            params={
-                "application_id": shared.APPLICATION_ID,
-                "account_id": ",".join(map(str, id_range)),
-                "fields": "statistics,tank_id",
-            },
-        )
+        try:
+            response = session.get(
+                "http://api.worldoftanks.ru/wot/account/tanks/",
+                params={
+                    "application_id": shared.APPLICATION_ID,
+                    "account_id": ",".join(map(str, id_range)),
+                    "fields": "statistics,tank_id",
+                },
+            )
+        except:
+            logging.exception("HTTP API error. Sleeping for a second.")
+            time.sleep(1.0)
+            continue
         # Retry if HTTP request is failed.
         if response.status_code != requests.codes.ok:
             logging.warning("Status code: %d.", response.status_code)
@@ -90,6 +95,7 @@ def get_account_tanks(session, id_range):
         else:
             # We don't know what to do.
             break
+    # We failed.
     raise ValueError("All attempts failed. Range: %r. Last payload: %r.", id_range, payload)
 
 
