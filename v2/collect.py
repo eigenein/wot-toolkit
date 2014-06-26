@@ -22,6 +22,9 @@ import shared
 
 LIMIT = 100
 
+REQUEST_LIMIT_EXCEEDED = 407
+SOURCE_NOT_AVAILABLE = 504
+
 
 def main(args, executor):
     max_workers = args.max_workers
@@ -54,11 +57,8 @@ def main(args, executor):
 def get_account_tanks(session, id_range):
     payload = None
     logging.debug("Get account tanks: %r…", id_range)
-    for attempt in range(5):
-        if attempt:
-            sleep_time = random.random() + 0.1
-            logging.warning("Sleeping for %.2fs.", sleep_time)
-            time.sleep(sleep_time)
+    for attempt in range(3):
+        # Make API request.
         response = session.get(
             "http://api.worldoftanks.ru/wot/account/tanks/",
             params={
@@ -67,14 +67,26 @@ def get_account_tanks(session, id_range):
                 "fields": "statistics,tank_id",
             },
         )
+        # Retry if HTTP request is failed.
         if response.status_code != requests.codes.ok:
             logging.warning("Status code: %d.", response.status_code)
             continue
+        # Get payload.
         payload = response.json()
-        if payload["status"] != "ok":
-            logging.warning("Request failed: %r.", payload)
-            continue
-        return payload["data"]
+        if payload["status"] == "ok":
+            return payload["data"]
+        # API returned an error.
+        logging.warning("Request failed: %r.", payload)
+        code = payload["error"]["code"]
+        if code == REQUEST_LIMIT_EXCEEDED:
+            # Decrease request rate.
+            sleep_time = random.random() + 0.1
+            logging.warning("Sleeping for %.2fs.", sleep_time)
+            time.sleep(sleep_time)
+        elif code == SOURCE_NOT_AVAILABLE:
+            # Try to repeat request later.
+            logging.warning("Sleeping for an hour.")
+            time.sleep(3600.0)
     raise ValueError("All attempts failed. Last payload: %r.", payload)
 
 
