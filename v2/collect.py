@@ -163,7 +163,18 @@ if __name__ == "__main__":
         metavar="<number of workers>",
         type=int,
     )
+    parser.add_argument(
+        "-l",
+        "--log-path",
+        default=sys.stderr,
+        dest="log",
+        help="log file (default: stderr)",
+        metavar="<file>",
+        type=argparse.FileType("wt"),
+    )
     args = parser.parse_args()
+
+    logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO, stream=args.log)
 
     try:
         with concurrent.futures.ThreadPoolExecutor(max_workers=args.max_workers) as executor:
