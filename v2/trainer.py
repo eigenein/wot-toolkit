@@ -19,7 +19,7 @@ def main(args):
     logging.info("Tank rows: %d entries.", len(tank_rows))
 
     logging.info("Make rating matrix.")
-    y, r = get_rating_matrix(args.input, tank_rows, args.account_number, args.tank_number)
+    y, r = get_rating_matrix(args.input, tank_rows, args.account_number, args.total_tank_number)
 
 
 def get_tank_rows():
@@ -35,12 +35,13 @@ def get_tank_rows():
     return {tank_id: i for i, tank_id in enumerate(tank_ids)}
 
 
-def get_rating_matrix(input, tank_rows, account_number, tank_number):
+def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
+    tank_number = len(tank_rows)
     # Initialize arrays.
-    y_data = numpy.zeros(tank_number)
-    r_data = numpy.zeros(tank_number, numpy.bool)
-    indices = numpy.zeros(tank_number, numpy.int)
-    indptr = numpy.zeros(account_number, numpy.int)
+    y_data = numpy.zeros(total_tank_number)
+    r_data = numpy.zeros(total_tank_number, numpy.bool)
+    indices = numpy.zeros(total_tank_number, numpy.int)
+    indptr = numpy.zeros(account_number + 1, numpy.int)
     # Fill up arrays.
     tank_counter = 0
     for i, obj in enumerate(msgpack.Unpacker(args.input)):
@@ -62,17 +63,20 @@ def get_rating_matrix(input, tank_rows, account_number, tank_number):
         position = args.input.tell()
         if i % 100000 == 0:
             logging.info("%d objects | %.1f MiB", i, position / 1048576.0)
+    indptr[account_number] = tank_counter
     # Truncate arrays.
     logging.info("Tank counter: %d.", tank_counter)
     # Convert to matrices.
-    y = scipy.sparse.csc_matrix((y_data, indices, indptr))
-    del y_data
-    r = scipy.sparse.csc_matrix((r_data, indices, indptr))
-    del r_data
-    del indices
-    del indptr
-    logging.info("Y shape: %r.", y.shape)
-    logging.info("R shape: %r.", r.shape)
+    y = scipy.sparse.csc_matrix((tank_number, account_number))
+    y.data = y_data
+    y.indices = indices
+    y.indptr = indptr
+    logging.info("Y: %r.", y)
+    r = scipy.sparse.csc_matrix((tank_number, account_number), dtype=numpy.bool)
+    r.data = r_data
+    r.indices = indices
+    r.indptr = indptr
+    logging.info("R: %r.", r)
     return y, r
 
 
@@ -94,7 +98,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-t",
-        dest="tank_number",
+        dest="total_tank_number",
         help="exact total tank number (across all accounts)",
         metavar="<number>",
         required=True,
