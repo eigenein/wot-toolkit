@@ -19,9 +19,9 @@ def main(args):
     logging.info("Tank rows: %d entries.", len(tank_rows))
 
     logging.info("Make rating matrix.")
-    y, r = get_rating_matrix(args.input, tank_rows, args.account_number, args.total_tank_number)
+    y = get_rating_matrix(args.input, tank_rows, args.account_number, args.total_tank_number)
     x, theta = get_parameters(len(tank_rows), args.account_number, args.num_features)
-    gradient_descent(y, r, x, theta, args.l, args.num_iterations)
+    gradient_descent(y, x, theta, args.l, args.num_iterations)
 
 
 def get_tank_rows():
@@ -40,8 +40,7 @@ def get_tank_rows():
 def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
     tank_number = len(tank_rows)
     # Initialize arrays.
-    y_data = numpy.zeros(total_tank_number)
-    r_data = numpy.zeros(total_tank_number, numpy.bool)
+    y_data = numpy.zeros(total_tank_number, dtype=numpy.float32)
     indices = numpy.zeros(total_tank_number, numpy.int)
     indptr = numpy.zeros(account_number + 1, numpy.int)
     # Fill up arrays.
@@ -59,7 +58,6 @@ def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
                 rating = wins / battles
                 # Append values.
                 y_data[tank_counter] = rating
-                r_data[tank_counter] = 1
                 indices[tank_counter] = tank_rows[tank_id]
                 tank_counter += 1
             # Log progress.
@@ -72,17 +70,12 @@ def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
     # Truncate arrays.
     logging.info("Tank counter: %d.", tank_counter)
     # Convert to matrices.
-    y = scipy.sparse.csc_matrix((tank_number, account_number))
+    y = scipy.sparse.csc_matrix((tank_number, account_number), dtype=numpy.float32)
     y.data = y_data
     y.indices = indices
     y.indptr = indptr
     logging.info("Y: %r.", y)
-    r = scipy.sparse.csc_matrix((tank_number, account_number), dtype=numpy.bool)
-    r.data = r_data
-    r.indices = indices
-    r.indptr = indptr
-    logging.info("R: %r.", r)
-    return y, r
+    return y
 
 
 def get_parameters(tank_number, account_number, feature_number):
@@ -93,13 +86,13 @@ def get_parameters(tank_number, account_number, feature_number):
     return x, theta
 
 
-def gradient_descent(y, r, x, theta, l, num_iterations):
+def gradient_descent(y, x, theta, l, num_iterations):
     logging.info("Gradient descent.")
     alpha, previous_cost = 0.001, float("+inf")
     try:
         for i in range(num_iterations):
-            x_new, theta_new = do_step(y, r, x, theta, l, alpha)
-            current_cost = cost(y, r, x_new, theta_new, l)
+            x_new, theta_new = do_step(y, x, theta, l, alpha)
+            current_cost = cost(y, x_new, theta_new, l)
             logging.info(
                 "#%d | cost: %.3f | delta: %.6f | alpha: %f",
                 i, current_cost, current_cost - previous_cost, alpha)
@@ -116,15 +109,22 @@ def gradient_descent(y, r, x, theta, l, num_iterations):
         logging.warning("Gradient descent is interrupted by user.")
 
 
-def cost(y, r, x, theta, l):
-    return (((x.dot(theta.T) - y) * r) ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
+def cost(y, x, theta, l):
+    diff = get_diff(y, x, theta)
+    return (diff ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
-def do_step(y, r, x, theta, l, alpha):
-    diff = (x.dot(theta.T) - y) * r
+def do_step(y, x, theta, l, alpha):
+    diff = get_diff(y, x, theta)
     x_grad = diff.dot(theta) + l * x
     theta_grad = diff.T.dot(x) + l * theta
     return (x - alpha * x_grad, theta - alpha * theta_grad)
+
+
+def get_diff(y, x, theta):
+    rows, cols = y.nonzero()
+    data = numpy.sum(x[rows] * theta[cols], 1) - y.data
+    return scipy.sparse.csc_matrix((data, (rows, cols)), shape=y.shape, dtype=numpy.float32)
 
 
 if __name__ == "__main__":
