@@ -14,6 +14,9 @@ import scipy.sparse
 import shared
 
 
+DTYPE = numpy.float32
+
+
 def main(args):
     tank_rows = get_tank_rows()
     logging.info("Tank rows: %d entries.", len(tank_rows))
@@ -40,7 +43,7 @@ def get_tank_rows():
 def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
     tank_number = len(tank_rows)
     # Initialize arrays.
-    y_data = numpy.zeros(total_tank_number, dtype=numpy.float32)
+    y_data = numpy.zeros(total_tank_number, dtype=DTYPE)
     indices = numpy.zeros(total_tank_number, numpy.int)
     indptr = numpy.zeros(account_number + 1, numpy.int)
     # Fill up arrays.
@@ -70,10 +73,8 @@ def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
     # Truncate arrays.
     logging.info("Tank counter: %d.", tank_counter)
     # Convert to matrices.
-    y = scipy.sparse.csc_matrix((tank_number, account_number), dtype=numpy.float32)
-    y.data = y_data
-    y.indices = indices
-    y.indptr = indptr
+    y = scipy.sparse.csc_matrix((tank_number, account_number), dtype=DTYPE)
+    y.data, y.indices, y.indptr = y_data, indices, indptr
     logging.info("Y: %r.", y)
     return y
 
@@ -91,7 +92,7 @@ def gradient_descent(y, x, theta, l, num_iterations):
     alpha, previous_cost = 0.001, float("+inf")
     try:
         for i in range(num_iterations):
-            x_new, theta_new = do_step(y, x, theta, l, alpha)
+            x_new, theta_new = step(y, x, theta, l, alpha)
             current_cost = cost(y, x_new, theta_new, l)
             logging.info(
                 "#%d | cost: %.3f | delta: %.6f | alpha: %f",
@@ -110,21 +111,24 @@ def gradient_descent(y, x, theta, l, num_iterations):
 
 
 def cost(y, x, theta, l):
-    diff = get_diff(y, x, theta)
-    return (diff ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
+    diff_data = get_diff(y, x, theta).data
+    diff_data *= diff_data  # in-place sqr
+    return diff_data.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
-def do_step(y, x, theta, l, alpha):
+def step(y, x, theta, l, alpha):
     diff = get_diff(y, x, theta)
     x_grad = diff.dot(theta) + l * x
-    theta_grad = diff.T.dot(x) + l * theta
+    diff.row, diff.col = diff.col, diff.row  # in-place transpose
+    theta_grad = diff.dot(x) + l * theta
     return (x - alpha * x_grad, theta - alpha * theta_grad)
 
 
 def get_diff(y, x, theta):
-    rows, cols = y.nonzero()
-    data = numpy.sum(x[rows] * theta[cols], 1) - y.data
-    return scipy.sparse.csc_matrix((data, (rows, cols)), shape=y.shape, dtype=numpy.float32)
+    diff = y.tocoo()  # copy
+    diff *= -1.0  # -y
+    diff.data += numpy.sum(x[diff.row] * theta[diff.col], 1)  # x.dot(theta.T) * r
+    return diff
 
 
 if __name__ == "__main__":
