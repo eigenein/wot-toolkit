@@ -91,7 +91,7 @@ def gradient_descent(y, x, theta, l, iteration_number, batch_size):
             # Choose random columns from y
             cols = numpy.random.choice(y.shape[1], batch_size)
             # Get partial matrices.
-            y_partial = y[:, cols].todense()
+            y_partial = y[:, cols].toarray()
             r_partial = (y_partial != 0)
             # Compute partial x and theta.
             x_new, theta_new = step(x, theta[cols], y_partial, r_partial, l, alpha)
