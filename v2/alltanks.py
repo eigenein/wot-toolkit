@@ -24,7 +24,7 @@ def main(args):
     tanks = response.json()["data"]
     tanks = {tank_id: {"name": tank["name"], "row": i} for i, (tank_id, tank) in enumerate(tanks.items())}
     logging.info("Tanks: %d.", len(tanks))
-    json.dump(tanks, args.output)
+    json.dump(tanks, args.output, indent=2)
 
 
 if __name__ == "__main__":
