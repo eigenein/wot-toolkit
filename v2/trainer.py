@@ -25,7 +25,7 @@ def main(args):
     logging.info("Make rating matrix.")
     y = get_rating_matrix(args.input, tanks, args.account_number, args.total_tank_number)
     x, theta = get_parameters(len(tanks), args.account_number, args.feature_number)
-    # gradient_descent(y, x, theta, args.l, args.iteration_number)
+    gradient_descent(y, x, theta, args.l, args.iteration_number, args.batch_size)
 
 
 def get_tanks(tanks):
@@ -73,26 +73,38 @@ def get_rating_matrix(input, tanks, account_number, total_tank_number):
 
 
 def get_parameters(tank_number, account_number, feature_number):
+    logging.info("Generate initial parameters.")
     x = numpy.random.rand(tank_number, feature_number).astype(DTYPE)
+    x *= 0.001
     logging.info("X shape: %r.", x.shape)
     theta = numpy.random.rand(account_number, feature_number).astype(DTYPE)
+    theta *= 0.001
     logging.info("Theta shape: %r.", theta.shape)
     return x, theta
 
 
-def gradient_descent(y, x, theta, l, iteration_number):
+def gradient_descent(y, x, theta, l, iteration_number, batch_size):
     logging.info("Gradient descent.")
     alpha, previous_cost = 0.001, float("+inf")
     try:
         for i in range(iteration_number):
-            x_new, theta_new = step(x, theta, y, l, alpha)
-            current_cost = cost(x_new, theta_new, y, l)
+            # Choose random columns from y
+            cols = numpy.random.choice(y.shape[1], batch_size)
+            # Get partial matrices.
+            y_partial = y[:, cols].todense()
+            r_partial = (y_partial != 0)
+            # Compute partial x and theta.
+            x_new, theta_new = step(x, theta[cols], y_partial, r_partial, l, alpha)
+            # Compute partial cost.
+            current_cost = cost(x_new, theta_new, y_partial, r_partial, l)
             logging.info(
                 "#%d | cost: %.3f | delta: %.6f | alpha: %f",
                 i, current_cost, current_cost - previous_cost, alpha)
             if current_cost < previous_cost:
                 alpha *= 1.05
-                x, theta = x_new, theta_new
+                x = x_new
+                # Update theta partially.
+                theta[:, cols] = theta_new
             else:
                 logging.warning("Step: #%d.", i)
                 logging.warning("Reset alpha: %f.", alpha)
@@ -101,6 +113,17 @@ def gradient_descent(y, x, theta, l, iteration_number):
             previous_cost = current_cost
     except KeyboardInterrupt:
         logging.warning("Gradient descent is interrupted by user.")
+
+
+def cost(x, theta, y, r, l):
+    return (((x.dot(theta.T) - y) * r) ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
+
+
+def step(x, theta, y, r, l, alpha):
+    diff = (x.dot(theta.T) - y) * r
+    x_grad = diff.dot(theta) + l * x
+    theta_grad = diff.T.dot(x) + l * theta
+    return (x - alpha * x_grad, theta - alpha * theta_grad)
 
 
 if __name__ == "__main__":
@@ -159,6 +182,14 @@ if __name__ == "__main__":
         metavar="<tanks.json>",
         required=True,
         type=argparse.FileType("rt"),
+    )
+    parser.add_argument(
+        "--batch-size",
+        default=10000,
+        dest="batch_size",
+        help="mini-batch gradient descent size (default: %(default)s)",
+        metavar="<number>",
+        type=int,
     )
     args = parser.parse_args()
     logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO)
