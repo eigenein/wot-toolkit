@@ -79,9 +79,11 @@ def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
 
 
 def get_parameters(tank_number, account_number, feature_number):
-    x = 0.001 * numpy.random.rand(tank_number, feature_number)
+    x = numpy.random.rand(tank_number, feature_number)
+    x *= 0.001
     logging.info("X shape: %r.", x.shape)
-    theta = 0.001 * numpy.random.rand(account_number, feature_number)
+    theta = numpy.random.rand(account_number, feature_number)
+    theta *= 0.001
     logging.info("Theta shape: %r.", theta.shape)
     return x, theta
 
