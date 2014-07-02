@@ -91,8 +91,8 @@ def gradient_descent(y, x, theta, l, num_iterations):
     alpha, previous_cost = 0.001, float("+inf")
     try:
         for i in range(num_iterations):
-            x_new, theta_new = step(y, x, theta, l, alpha)
-            current_cost = cost(y, x_new, theta_new, l)
+            x_new, theta_new = step(x, theta, y, l, alpha)
+            current_cost = cost(x_new, theta_new, y, l)
             logging.info(
                 "#%d | cost: %.3f | delta: %.6f | alpha: %f",
                 i, current_cost, current_cost - previous_cost, alpha)
@@ -133,7 +133,7 @@ def step(x, theta, y, l, alpha):
 
 def make_diff(x, theta, y):
     # Make transposed sparse matrix.
-    y_t = scipy.sparse.csr_matrix(t.shape[::-1], dtype=DTYPE)
+    y_t = scipy.sparse.csr_matrix(y.shape[::-1], dtype=DTYPE)
     y_t.data, y_t.indices, y_t.indptr = y.data, y.indices, y.indptr
     cols, rows = y_t.nonzero()  # CSR returns in order of data.
     # Make diff.
