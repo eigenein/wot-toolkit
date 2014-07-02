@@ -43,7 +43,7 @@ def get_tank_rows():
 def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
     tank_number = len(tank_rows)
     # Initialize arrays.
-    y_data = numpy.zeros(total_tank_number, dtype=DTYPE)
+    data = numpy.zeros(total_tank_number, dtype=DTYPE)
     indices = numpy.zeros(total_tank_number, numpy.int)
     indptr = numpy.zeros(account_number + 1, numpy.int)
     # Fill up arrays.
@@ -60,7 +60,7 @@ def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
                 battles = 2 * wins - delta
                 rating = wins / battles
                 # Append values.
-                y_data[tank_counter] = rating
+                data[tank_counter] = rating
                 indices[tank_counter] = tank_rows[tank_id]
                 tank_counter += 1
             # Log progress.
@@ -69,12 +69,11 @@ def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
                 logging.info("%d objects | %.1f MiB", i, position / 1048576.0)
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
-    indptr[account_number] = tank_counter
     # Truncate arrays.
     logging.info("Tank counter: %d.", tank_counter)
-    # Convert to matrices.
+    # Convert to matrix.
     y = scipy.sparse.csc_matrix((tank_number, account_number), dtype=DTYPE)
-    y.data, y.indices, y.indptr = y_data, indices, indptr
+    y.data, y.indices, y.indptr = data, indices, indptr
     logging.info("Y: %r.", y)
     return y
 
@@ -110,25 +109,45 @@ def gradient_descent(y, x, theta, l, num_iterations):
         logging.warning("Gradient descent is interrupted by user.")
 
 
-def cost(y, x, theta, l):
-    diff_data = get_diff(y, x, theta).data
-    diff_data *= diff_data  # in-place sqr
-    return diff_data.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
+def cost(x, theta, y, l):
+    diff, diff_t, x_theta = make_diff(x, theta, y)
+    diff.data **= 2
+    current_cost = diff.data.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
+    diff.data **= 0.5
+    revert(diff, x_theta)
+    return current_cost
 
 
-def step(y, x, theta, l, alpha):
-    diff = get_diff(y, x, theta)
+def step(x, theta, y, l, alpha):
+    diff, diff_t, x_theta = make_diff(x, theta, y)
+
     x_grad = diff.dot(theta) + l * x
-    diff.row, diff.col = diff.col, diff.row  # in-place transpose
-    theta_grad = diff.dot(x) + l * theta
-    return (x - alpha * x_grad, theta - alpha * theta_grad)
+    theta_grad = diff_t.dot(x) + l * theta
+
+    x_new = x - alpha * x_grad
+    theta_new = theta - alpha * theta_grad
+
+    revert(diff, x_theta)
+    return (x_new, theta_new)
 
 
-def get_diff(y, x, theta):
-    diff = y.tocoo()  # copy
-    diff *= -1.0  # -y
-    diff.data += numpy.sum(x[diff.row] * theta[diff.col], 1)  # x.dot(theta.T) * r
-    return diff
+def make_diff(x, theta, y):
+    # Make transposed sparse matrix.
+    y_t = scipy.sparse.csr_matrix(t.shape[::-1], dtype=DTYPE)
+    y_t.data, y_t.indices, y_t.indptr = y.data, y.indices, y.indptr
+    cols, rows = y_t.nonzero()  # CSR returns in order of data.
+    # Make diff.
+    y.data *= -1  # diff = -y
+    x_theta = numpy.sum(x[rows] * theta[cols], 1)
+    y.data += x_theta  # diff = x.dot(theta.T) * r - y
+    # Return both diff and transposed diff.
+    return y, y_t, x_theta
+
+
+def revert(diff, x_theta):
+    # Revert make_diff.
+    diff.data -= x_theta
+    diff.data *= -1
 
 
 if __name__ == "__main__":
