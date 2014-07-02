@@ -79,10 +79,10 @@ def get_rating_matrix(input, tank_rows, account_number, total_tank_number):
 
 
 def get_parameters(tank_number, account_number, feature_number):
-    x = numpy.random.rand(tank_number, feature_number)
+    x = numpy.random.rand(tank_number, feature_number).astype(DTYPE)
     x *= 0.001
     logging.info("X shape: %r.", x.shape)
-    theta = numpy.random.rand(account_number, feature_number)
+    theta = numpy.random.rand(account_number, feature_number).astype(DTYPE)
     theta *= 0.001
     logging.info("Theta shape: %r.", theta.shape)
     return x, theta
@@ -133,14 +133,21 @@ def step(x, theta, y, l, alpha):
     return (x_new, theta_new)
 
 
+def nonzero(y):
+    for col in range(y.shape[1]):
+        for i in range(y.indptr[col], y.indptr[col + 1]):
+            yield i, y.indices[i], col
+
+
 def make_diff(x, theta, y):
     # Make transposed sparse matrix.
     y_t = scipy.sparse.csr_matrix(y.shape[::-1], dtype=DTYPE)
     y_t.data, y_t.indices, y_t.indptr = y.data, y.indices, y.indptr
-    cols, rows = y_t.nonzero()  # CSR returns in order of data.
     # Make diff.
     y.data *= -1  # diff = -y
-    x_theta = numpy.sum(x[rows] * theta[cols], 1)
+    x_theta = numpy.ndarray(y.data.size, dtype=DTYPE)
+    for i, row, col in nonzero(y):  # TODO: optimize
+        x_theta[i] = (x[row] * theta[col]).sum()  # TODO: optimize
     y.data += x_theta  # diff = x.dot(theta.T) * r - y
     # Return both diff and transposed diff.
     return y, y_t, x_theta
