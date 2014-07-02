@@ -12,8 +12,6 @@ import requests
 import numpy
 import scipy.sparse
 
-import shared
-
 
 DTYPE = numpy.float32
 
@@ -30,7 +28,7 @@ def main(args):
 
 def get_tanks(tanks):
     tanks = json.load(tanks)
-    tanks = {int(tank_id): tank for tank_id, tank in tanks.items()}
+    tanks = {int(tank_id): (tank["row"], tank["name"]) for tank_id, tank in tanks.items()}
     return tanks
 
 
@@ -55,7 +53,7 @@ def get_rating_matrix(input, tanks, account_number, total_tank_number):
                 rating = wins / battles
                 # Append values.
                 data[tank_counter] = rating
-                indices[tank_counter] = tanks[tank_id]["row"]
+                indices[tank_counter] = tanks[tank_id][0]
                 tank_counter += 1
             # Log progress.
             position = args.input.tell()
@@ -98,17 +96,17 @@ def gradient_descent(y, x, theta, l, iteration_number, batch_size):
             # Compute partial cost.
             current_cost = cost(x_new, theta_new, y_partial, r_partial, l)
             logging.info(
-                "#%d | cost: %.3f | delta: %.6f | alpha: %f",
+                "#%d | cost: %.6f | delta: %.6f | alpha: %f",
                 i, current_cost, current_cost - previous_cost, alpha)
             if current_cost < previous_cost:
                 alpha *= 1.05
                 x = x_new
                 # Update theta partially.
-                theta[:, cols] = theta_new
+                theta[cols] = theta_new
             else:
                 logging.warning("Step: #%d.", i)
                 logging.warning("Reset alpha: %f.", alpha)
-                logging.warning("Cost: %.3f.", current_cost)
+                logging.warning("Cost: %.6f.", current_cost)
                 alpha *= 0.5
             previous_cost = current_cost
     except KeyboardInterrupt:
@@ -131,8 +129,8 @@ if __name__ == "__main__":
     parser.add_argument(
         dest="input",
         help="input file",
-        metavar="<input.msgpack.gz>",
-        type=shared.GZipFileType("rb"),
+        metavar="<input.msgpack>",
+        type=argparse.FileType("rb"),
     )
     parser.add_argument(
         "-a",
