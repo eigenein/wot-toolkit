@@ -61,6 +61,7 @@ def get_rating_matrix(input, tanks, account_number, total_tank_number):
                 logging.info("%d objects | %.1f MiB", i, position / 1048576.0)
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
+    indptr[account_number] = tank_counter
     # Truncate arrays.
     logging.info("Tank counter: %d.", tank_counter)
     # Convert to matrix.
@@ -89,7 +90,9 @@ def gradient_descent(y, x, theta, l, iteration_number, batch_size):
             # Choose random columns from y
             cols = numpy.random.choice(y.shape[1], batch_size)
             # Get partial matrices.
+            print(2)
             y_partial = y[:, cols].toarray()
+            print(3)
             r_partial = (y_partial != 0)
             # Compute partial x and theta.
             x_new, theta_new = step(x, theta[cols], y_partial, r_partial, l, alpha)
