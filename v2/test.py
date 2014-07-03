@@ -9,8 +9,6 @@ import logging
 
 import msgpack
 
-import shared
-
 
 def main(args):
     counter = collections.Counter()
@@ -34,8 +32,8 @@ if __name__ == "__main__":
     parser.add_argument(
         dest="input",
         help="input file",
-        metavar="<input.msgpack.gz>",
-        type=shared.GZipFileType("rb"),
+        metavar="<input.msgpack>",
+        type=argparse.FileType("rb"),
     )
     args = parser.parse_args()
     logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO)
