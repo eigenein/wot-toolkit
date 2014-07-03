@@ -42,6 +42,9 @@ def get_rating_matrix(input, tanks, account_number, total_tank_number):
     tank_counter = 0
     try:
         for i, obj in enumerate(msgpack.Unpacker(args.input)):
+            if i == account_number:
+                logging.warning("Not all objects are read.")
+                break
             # Unpack object.
             account_id, *stats = obj
             # Append column.
@@ -84,7 +87,7 @@ def get_parameters(tank_number, account_number, feature_number):
 
 def gradient_descent(y, x, theta, l, iteration_number):
     logging.info("Gradient descent.")
-    alpha, previous_cost = 0.001, float("+inf")
+    alpha, previous_cost = 1.0, float("+inf")
     try:
         for i in range(iteration_number):
             logging.info("Starting iteration #%d.", i)
@@ -118,11 +121,10 @@ def gradient_descent(y, x, theta, l, iteration_number):
                 alpha *= 1.05
                 logging.info("Alpha is increased up to %.6f.", alpha)
                 x, theta = x_new, theta_new
+                previous_cost = current_cost
             else:
                 logging.warning("Reset alpha.")
                 alpha *= 0.5
-
-            previous_cost = current_cost
     except KeyboardInterrupt:
         logging.warning("Gradient descent is interrupted by user.")
 
