@@ -23,7 +23,7 @@ def main(args):
     logging.info("Make rating matrix.")
     y = get_rating_matrix(args.input, tanks, args.account_number, args.total_tank_number)
     x, theta = get_parameters(len(tanks), args.account_number, args.feature_number)
-    gradient_descent(y, x, theta, args.l, args.iteration_number, args.batch_size)
+    gradient_descent(y, x, theta, args.l, args.iteration_number)
 
 
 def get_tanks(tanks):
@@ -58,7 +58,7 @@ def get_rating_matrix(input, tanks, account_number, total_tank_number):
             # Log progress.
             position = args.input.tell()
             if i % 10000 == 0:
-                logging.info("%d objects | %.1f MiB", i, position / 1048576.0)
+                logging.info("Reading: %d objects | %.1f MiB", i, position / 1048576.0)
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
     indptr[account_number] = tank_counter
@@ -82,45 +82,65 @@ def get_parameters(tank_number, account_number, feature_number):
     return x, theta
 
 
-def gradient_descent(y, x, theta, l, iteration_number, batch_size):
+def gradient_descent(y, x, theta, l, iteration_number):
     logging.info("Gradient descent.")
     alpha, previous_cost = 0.001, float("+inf")
     try:
         for i in range(iteration_number):
-            # Choose random columns from y
-            cols = numpy.random.choice(y.shape[1], batch_size)
-            # Get partial matrices.
-            print(2)
-            y_partial = y[:, cols].toarray()
-            print(3)
-            r_partial = (y_partial != 0)
-            # Compute partial x and theta.
-            x_new, theta_new = step(x, theta[cols], y_partial, r_partial, l, alpha)
-            # Compute partial cost.
-            current_cost = cost(x_new, theta_new, y_partial, r_partial, l)
+            logging.info("Starting iteration #%d.", i)
+            current_cost = 0.0
+
+            logging.info("Generating column order.")
+            columns = numpy.random.permutation(y.shape[1])
+
+            logging.info("Copying x and theta.")
+            x_new, theta_new = x.copy(), theta.copy()
+
+            for j, column in enumerate(columns):
+                # Get partial matrices.
+                y_partial = getcol(y, column)
+                r_partial = (y_partial != 0)
+                # Compute partial cost.
+                current_cost += cost(x_new, theta[column], y_partial, r_partial, l)
+                # Compute partial x and theta.
+                x_new, theta_new[column] = step(x_new, theta[column], y_partial, r_partial, l, alpha)
+                # Print current iteration info and check current cost.
+                if j % 1000 == 0:
+                    logging.info("#%d/%d | cost: %.3f | prev: %.3f", i, j, current_cost, previous_cost)
+                    if current_cost > previous_cost:
+                        logging.warning("Current cost is greater than previous cost. Break.")
+                        break
+
             logging.info(
-                "#%d | cost: %.6f | delta: %.6f | alpha: %f",
+                "#%d | cost: %.3f | delta: %.6f | alpha: %f",
                 i, current_cost, current_cost - previous_cost, alpha)
             if current_cost < previous_cost:
                 alpha *= 1.05
-                x = x_new
-                # Update theta partially.
-                theta[cols] = theta_new
+                logging.info("Alpha is increased up to %.6f.", alpha)
+                x, theta = x_new, theta_new
             else:
-                logging.warning("Step: #%d.", i)
-                logging.warning("Reset alpha: %f.", alpha)
-                logging.warning("Cost: %.6f.", current_cost)
+                logging.warning("Reset alpha.")
                 alpha *= 0.5
+
             previous_cost = current_cost
     except KeyboardInterrupt:
         logging.warning("Gradient descent is interrupted by user.")
 
 
+def getcol(y, column):
+    # Work around ineffective csc_matrix.getcol.
+    data = y.data[y.indptr[column]:y.indptr[column + 1]]
+    indices = y.indices[y.indptr[column]:y.indptr[column + 1]]
+    return scipy.sparse.csr_matrix((data, indices, numpy.array([0, data.size])), shape=(1, y.shape[0])).toarray().T
+
+
 def cost(x, theta, y, r, l):
+    theta = theta.reshape((1, theta.size))
     return (((x.dot(theta.T) - y) * r) ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
 def step(x, theta, y, r, l, alpha):
+    theta = theta.reshape((1, theta.size))
     diff = (x.dot(theta.T) - y) * r
     x_grad = diff.dot(theta) + l * x
     theta_grad = diff.T.dot(x) + l * theta
@@ -183,14 +203,6 @@ if __name__ == "__main__":
         metavar="<tanks.json>",
         required=True,
         type=argparse.FileType("rt"),
-    )
-    parser.add_argument(
-        "--batch-size",
-        default=10000,
-        dest="batch_size",
-        help="mini-batch gradient descent size (default: %(default)s)",
-        metavar="<number>",
-        type=int,
     )
     args = parser.parse_args()
     logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO)

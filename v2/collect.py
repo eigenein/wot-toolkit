@@ -151,7 +151,7 @@ if __name__ == "__main__":
         help="output file",
         metavar="<output.msgpack.gz>",
         required=True,
-        type=shared.GZipFileType("wb"),
+        type=shared.GZipFileType("wb"),  # TODO: use argparse.FileType
     )
     parser.add_argument(
         "--min-battles",
