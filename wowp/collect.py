@@ -37,14 +37,14 @@ def main(args):
             for account_stats in data.values():
                 if account_stats is None:
                     continue
-                empty = True
+                empty = True  # TODO
                 for plane_stats in account_stats:
                     if plane_stats["battles"] < args.min_battles:
                         continue
                     empty = False
                     ratings[account_number, planes.ALL[plane_stats["plane_id"]]["seq_id"]] = plane_stats["wins"] / plane_stats["battles"]
                     rating_number += 1
-                if not empty:
+                if not empty:  # TODO
                     account_number += 1
             aps = account_number / (time.time() - start_time)
             logging.info(
