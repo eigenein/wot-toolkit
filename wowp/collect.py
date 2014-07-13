@@ -74,17 +74,16 @@ def collect_users(application_id, planes, min_battles, output, session, account_
 
 def collect_planes(data, min_battles, output):
     rows = values = 0
-    row = []
     for account_id, planes in data.items():
         if planes is None:
             continue
         account_id = int(account_id)
+        row = []
         for plane in planes:
-            if plane["battles"] < min_battles:
-                continue
-            row.append((plane["plane_id"], plane["wins"] / plane["battles"]))
-            values += 1
-        if not values:
+            if plane["battles"] >= min_battles:
+                row.append((plane["plane_id"], plane["wins"] / plane["battles"]))
+                values += 1
+        if not row:
             continue
         rows += 1
         output.write(struct.pack("=ih", account_id, values))
