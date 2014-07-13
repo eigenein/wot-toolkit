@@ -45,8 +45,8 @@ def collect_all(application_id, planes, min_battles, output):
             all_values += values
             aps = account_id.stop / (time.time() - start_time)
             logging.info(
-                "%d-%d | %.2fMiB | %.1f aps | %.1f apd | %d rows | %.1f Bpr | %d val. | %.1f vpa",
-                account_id.start, account_id.stop, output.tell() / 1048576.0, aps, aps * 86400.0, all_rows, output.tell() / all_rows, all_values, all_values / all_rows,
+                "%d-%d | %.2fMiB | %.1f aps | %.0f apd | %d rows | %.1f Bpr | %d val. | %.1f vpa | %.2f rpa",
+                account_id.start, account_id.stop, output.tell() / 1048576.0, aps, aps * 86400.0, all_rows, output.tell() / all_rows, all_values, all_values / all_rows, all_rows / account_id.stop,
             )
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
@@ -55,7 +55,7 @@ def collect_all(application_id, planes, min_battles, output):
 
 def collect_users(application_id, planes, min_battles, output, session, account_id):
     account_id = ",".join(map(str, account_id))
-    for i in range(3):
+    for i in range(10):
         response = session.get("https://api.worldofwarplanes.ru/wowp/account/planes/", params={
             "application_id": application_id,
             "fields": "battles,wins,plane_id",
