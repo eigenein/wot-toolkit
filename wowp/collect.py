@@ -16,6 +16,10 @@ import requests
 HEADER_FORMAT = "=sssssssssihi"  # ("wowpstats", rows, columns, values)
 
 
+class Error(Exception):
+    pass
+
+
 def main(args):
     logging.info("Loading plane list…")
     planes = pickle.load(args.planes)
@@ -50,17 +54,29 @@ def collect_all(application_id, planes, min_battles, output):
             )
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
+    except Error as e:
+        logging.fatal("%s", e)
     return all_rows, all_values
 
 
 def collect_users(application_id, planes, min_battles, output, session, account_id):
     account_id = ",".join(map(str, account_id))
-    for i in range(10):
+    for i in range(13):
+        # Sleep before next attempts.
+        if i:
+            sleep_time = 2.0 ** i
+            logging.warning("Attempt #%d. Sleep %.0fs…", i, sleep_time)
+            try:
+                time.sleep(sleep_time)
+            except KeyboardInterrupt:
+                logging.warning("Sleep is interrupted.")
+        # Make request.
         response = session.get("https://api.worldofwarplanes.ru/wowp/account/planes/", params={
             "application_id": application_id,
             "fields": "battles,wins,plane_id",
             "account_id": account_id,
         })
+        # Check response.
         if response.status_code == requests.codes.ok:
             response = response.json()
             if response["status"] == "ok":
@@ -69,7 +85,8 @@ def collect_users(application_id, planes, min_battles, output, session, account_
                 logging.warning("API request failed: %r.", response)
         else:
             logging.warning("Status code: %d.", response.status_code)
-    raise ValueError("All attempts failed.")
+    # Abort script.
+    raise Error("All attempts failed.")
 
 
 def collect_planes(data, min_battles, output):
