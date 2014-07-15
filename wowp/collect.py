@@ -41,21 +41,33 @@ def collect_all(application_id, planes, min_battles, output):
     session = requests.Session()
     all_rows = all_values = 0
     start_time = time.time()
+    i, step = 1, 1
     try:
-        for i in itertools.count(1, 100):
-            account_id = range(i, i + 100)
-            rows, values = collect_users(application_id, planes, min_battles, output, session, account_id)
+        while True:
+            account_id = range(i, i + step)
+            try:
+                rows, values = collect_users(application_id, planes, min_battles, output, session, account_id)
+            except Error:
+                # Decrease step and repeat.
+                step = max(1, int(step / 2))
+                logging.warning("Step is decreased down to %d.", step)
+                continue
+            i += step  # go ahead
+            if step < 100:
+                # Increase step.
+                step = min(100, step + 1)
+                logging.info("Step is increased up to %d.", step)
             all_rows += rows
             all_values += values
             aps = account_id.stop / (time.time() - start_time)
-            logging.info(
-                "%d-%d | %.2fMiB | %.1f aps | %.0f apd | %d rows | %.1f Bpr | %d val. | %.1f vpa | %.2f rpa",
-                account_id.start, account_id.stop, output.tell() / 1048576.0, aps, aps * 86400.0, all_rows, output.tell() / all_rows, all_values, all_values / all_rows, all_rows / account_id.stop,
-            )
+            # Print stats if not empty.
+            if all_rows:
+                logging.info(
+                    "%d-%d | %.2fMiB | %.1f aps | %.0f apd | %d rows | %.1f Bpr | %d val. | %.1f vpa | %.2f rpa",
+                    account_id.start, account_id.stop, output.tell() / 1048576.0, aps, aps * 86400.0, all_rows, output.tell() / all_rows, all_values, all_values / all_rows, all_rows / account_id.stop,
+                )
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
-    except Error as e:
-        logging.fatal("%s", e)
     return all_rows, all_values
 
 
@@ -85,7 +97,6 @@ def collect_users(application_id, planes, min_battles, output, session, account_
                 logging.warning("API request failed: %r.", response)
         else:
             logging.warning("Status code: %d.", response.status_code)
-    # Abort script.
     raise Error("All attempts failed.")
 
 
@@ -116,6 +127,7 @@ if __name__ == "__main__":
     parser.add_argument("--min-battles", default=10, help="minimum number of battles (%(default)s)", metavar="<number>", type=int)
     parser.add_argument("-o", "--output", help="output file", metavar="<my.wowpstats>", required=True, type=argparse.FileType("wb"))
     parser.add_argument("--application-id", default="demo", help="application ID (%(default)s)", metavar="<id>")
+    parser.add_argument("--log-file", default=sys.stderr, help="log file (stderr)", metavar="<file>", type=argparse.FileType("wt"))
     args = parser.parse_args()
-    logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO, stream=sys.stderr)
+    logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.INFO, stream=args.log_file)
     main(args)
