@@ -14,6 +14,13 @@ import requests
 
 
 HEADER_FORMAT = "=sssssssssihi"  # ("wowpstats", rows, columns, values)
+HEADER_LENGTH = struct.calcsize(HEADER_FORMAT)
+
+ROW_START_FORMAT = "=ih"
+ROW_START_LENGTH = struct.calcsize(ROW_START_FORMAT)
+
+RATING_FORMAT = "=hf"
+RATING_LENGTH = struct.calcsize(RATING_FORMAT)
 
 
 class Error(Exception):
@@ -26,7 +33,7 @@ def main(args):
     logging.info("%d planes.", len(planes))
 
     logging.info("Collecting…")
-    args.output.write(b"\x00" * struct.calcsize(HEADER_FORMAT))  # skip header
+    args.output.write(b"\x00" * HEADER_LENGTH)  # skip header
     rows, values = collect_all(args.application_id, planes, args.min_battles, args.output)
 
     logging.info("Writing header…")
@@ -102,7 +109,7 @@ def collect_users(application_id, planes, min_battles, output, session, account_
 
 def collect_planes(data, min_battles, output):
     rows = values = 0
-    for account_id, planes in data.items():
+    for account_id, planes in data.items():  # TODO: sort by account_id
         if planes is None:
             continue
         account_id = int(account_id)
@@ -114,11 +121,15 @@ def collect_planes(data, min_battles, output):
         if not row:
             continue
         rows += 1
-        output.write(struct.pack("=ih", account_id, values))
-        row = sorted(row)  # sort by plane_id
-        for plane_id, rating in row:
-            output.write(struct.pack("=hf", plane_id, rating))
+        write_row(output, account_id, row)
     return rows, values
+
+
+def write_row(output, account_id, row):
+    output.write(struct.pack(ROW_START_FORMAT, account_id, len(row)))
+    row = sorted(row)  # sort by plane_id
+    for plane_id, rating in row:
+        output.write(struct.pack(RATING_FORMAT, plane_id, rating))
 
 
 if __name__ == "__main__":
