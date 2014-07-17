@@ -28,27 +28,40 @@ def main(args):
         logging.warning("Expected %d planes but found %d.", len(planes), rows)
 
     logging.info("Reading rating matrix.")
-    y, z = read_y(args.input, planes, rows, columns)
-    logging.info("%d values read (%d expected).", z.sum(), values)
+    y, r = read_y(args.input, planes, rows, columns)
+    logging.info("%d values read (%d expected).", r.sum(), values)
+
+    logging.info("Feature normalization.")
+    y, mean = normalize(y, r)
 
 
 def read_y(input, planes, rows, columns):
     y = numpy.zeros((rows, columns), dtype=DTYPE)
     z = numpy.zeros((rows, columns), dtype=numpy.bool)
-    for j in range(columns):
-        column = read_column(input)
-        for plane_id, rating in column:
-            i = planes[plane_id][0]
-            y[i, j] = rating
-            z[i, j] = True
-        if j % 100000 == 0:
-            logging.info("%d columns | %.1f%%", j, 100.0 * j / columns)
+    try:
+        for j in range(columns):
+            column = read_column(input)
+            for plane_id, rating in column:
+                i = planes[plane_id][0]
+                y[i, j], z[i, j] = rating, True
+            if j % 100000 == 0:
+                logging.info("%d columns | %.1f%%", j, 100.0 * j / columns)
+    except KeyboardInterrupt:
+        pass
     return y, z
 
 
 def read_column(input):
     account_id, values = struct.unpack(collect.ROW_START_FORMAT, input.read(collect.ROW_START_LENGTH))
     return [struct.unpack(collect.RATING_FORMAT, input.read(collect.RATING_LENGTH)) for i in range(values)]
+
+
+def normalize(y, r):
+    mean = y.sum(1) / r.sum(1)
+    mean = numpy.nan_to_num(mean)
+    mean = mean.reshape((mean.size, 1))
+    y = (y - mean) * r
+    return y, mean
 
 
 if __name__ == "__main__":
