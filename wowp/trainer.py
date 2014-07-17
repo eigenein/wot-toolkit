@@ -38,12 +38,15 @@ def main(args):
 
     logging.info("Initializing parameters.")
     x, theta = initialize_parameters(y.shape, args.num_features)
+    initial_cost = cost(y, r, x, theta, args.lambda_)
+    logging.info("Initial cost: %.6f.", initial_cost)
 
     logging.info("Gradient descent.")
-    x, theta, cost = gradient_descent(y, r, x, theta, args.lambda_)
+    x, theta, final_cost = gradient_descent(y, r, x, theta, args.lambda_, initial_cost)
+    logging.info("Cost improved by %.1fx.", initial_cost / final_cost)
 
     logging.info("Writing output profile.")
-    write_output(args.output, rows, columns, args.num_features, args.lambda_, cost, x, theta)
+    write_output(args.output, rows, columns, args.num_features, args.lambda_, final_cost, x, theta)
 
     logging.info("Finished.")
 
@@ -84,9 +87,9 @@ def initialize_parameters(y_shape, num_features):
     return x, theta
 
 
-def gradient_descent(y, r, x, theta, l):
+def gradient_descent(y, r, x, theta, l, initial_cost):
     alpha = 0.000001
-    previous_cost = float("+inf")
+    previous_cost = initial_cost
 
     try:
         for i in itertools.count(1):
