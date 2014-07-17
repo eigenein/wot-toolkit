@@ -30,7 +30,7 @@ def main(args):
         logging.warning("Expected %d planes but found %d.", len(planes), rows)
 
     logging.info("Reading rating matrix.")
-    y, r = read_y(args.input, planes, rows, columns)
+    y, r = read_y(args.input, planes, args.accounts, rows, columns)
     logging.info("%d values read (%d expected).", r.sum(), values)
 
     logging.info("Feature normalization.")
@@ -51,12 +51,13 @@ def main(args):
     logging.info("Finished.")
 
 
-def read_y(input, planes, rows, columns):
+def read_y(input, planes, accounts, rows, columns):
     y = numpy.zeros((rows, columns), dtype=DTYPE)
     z = numpy.zeros((rows, columns), dtype=numpy.bool)
     try:
         for j in range(columns):
-            column = read_column(input)
+            account_id, column = read_column(input)
+            print(j, account_id, file=accounts)
             for plane_id, rating in column:
                 i = planes[plane_id][0]
                 y[i, j], z[i, j] = rating, True
@@ -69,7 +70,7 @@ def read_y(input, planes, rows, columns):
 
 def read_column(input):
     account_id, values = struct.unpack(collect.ROW_START_FORMAT, input.read(collect.ROW_START_LENGTH))
-    return [struct.unpack(collect.RATING_FORMAT, input.read(collect.RATING_LENGTH)) for i in range(values)]
+    return account_id, [struct.unpack(collect.RATING_FORMAT, input.read(collect.RATING_LENGTH)) for i in range(values)]
 
 
 def normalize(y, r):
@@ -151,7 +152,8 @@ if __name__ == "__main__":
     parser.add_argument("--planes", help="plane list", metavar="<planes.pickle>", required=True, type=argparse.FileType("rb"))
     parser.add_argument("--lambda", default=0.0, dest="lambda_", help="regularization parameter (default: %(default)s)", metavar="<lambda>", type=float)
     parser.add_argument("--num-features", default=4, dest="num_features", help="number of features (default: %(default)s)", metavar="<number of features>", type=int)
-    parser.add_argument("-o", "--output", help="output profile", metavar="<my.wowpthetax>", type=argparse.FileType("wb"))
+    parser.add_argument("-o", "--output", help="output profile", metavar="<my.wowpthetax>", required=True, type=argparse.FileType("wb"))
+    parser.add_argument("--accounts", help="accounts list output", metavar="<accounts.txt>", required=True, type=argparse.FileType("wt"))
     args = parser.parse_args()
     logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.DEBUG)
     main(args)
