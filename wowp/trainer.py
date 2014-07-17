@@ -44,6 +44,7 @@ def main(args):
     logging.info("Gradient descent.")
     x, theta, final_cost = gradient_descent(y, r, x, theta, args.lambda_, initial_cost)
     logging.info("Cost improved by %.1fx.", initial_cost / final_cost)
+    logging.info("Average error: %.1f%%.", 100.0 * get_d(y, r, x, theta).sum() / values)
 
     logging.info("Writing output profile.")
     write_output(args.output, rows, columns, args.num_features, args.lambda_, final_cost, x, theta)
