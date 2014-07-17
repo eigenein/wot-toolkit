@@ -90,11 +90,15 @@ def collect_users(application_id, planes, min_battles, output, session, account_
             except KeyboardInterrupt:
                 logging.warning("Sleep is interrupted.")
         # Make request.
-        response = session.get("https://api.worldofwarplanes.ru/wowp/account/planes/", params={
-            "application_id": application_id,
-            "fields": "battles,wins,plane_id",
-            "account_id": account_id,
-        })
+        try:
+            response = session.get("https://api.worldofwarplanes.ru/wowp/account/planes/", params={
+                "application_id": application_id,
+                "fields": "battles,wins,plane_id",
+                "account_id": account_id,
+            })
+        except:
+            logging.exception("Request failed.")
+            continue
         # Check response.
         if response.status_code == requests.codes.ok:
             response = response.json()
