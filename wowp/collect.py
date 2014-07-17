@@ -109,10 +109,10 @@ def collect_users(application_id, planes, min_battles, output, session, account_
 
 def collect_planes(data, min_battles, output):
     rows = values = 0
-    for account_id, planes in data.items():  # TODO: sort by account_id
+    items = sorted((int(account_id), planes) for account_id, planes in data.items())
+    for account_id, planes in items:
         if planes is None:
             continue
-        account_id = int(account_id)
         row = []
         for plane in planes:
             if plane["battles"] >= min_battles:
