@@ -38,13 +38,12 @@ def main(args):
 
     logging.info("Initializing parameters.")
     x, theta = initialize_parameters(y.shape, args.num_features)
-    initial_cost = cost(y, r, x, theta, args.lambda_)
+    initial_cost = cost(y, r, x, theta, args.lambda_)[1]
     logging.info("Initial cost: %.6f.", initial_cost)
 
     logging.info("Gradient descent.")
     x, theta, final_cost = gradient_descent(y, r, x, theta, args.lambda_, initial_cost)
     logging.info("Cost improved by %.1fx.", initial_cost / final_cost)
-    logging.info("Average error: %.1f%%.", 100.0 * get_d(y, r, x, theta).sum() / values)
 
     logging.info("Writing output profile.")
     write_output(args.output, rows, columns, args.num_features, args.lambda_, final_cost, x, theta)
@@ -91,6 +90,7 @@ def initialize_parameters(y_shape, num_features):
 def gradient_descent(y, r, x, theta, l, initial_cost):
     alpha = 0.000001
     previous_cost = initial_cost
+    values = r.sum()
 
     try:
         for i in itertools.count(1):
@@ -98,9 +98,9 @@ def gradient_descent(y, r, x, theta, l, initial_cost):
             logging.debug("Doing step.")
             x_new, theta_new = step(y, r, x, theta, l, alpha)
             logging.debug("Computing new cost.")
-            new_cost = cost(y, r, x_new, theta_new, l)
-            logging.info("#%d | alpha: %.9f | cost: %.3f | delta: %.6f | %.1fs",
-                i, alpha, new_cost, new_cost - previous_cost, time.time() - start_time)
+            d_sum, new_cost = cost(y, r, x_new, theta_new, l)
+            logging.info("#%d | alpha: %.9f | cost: %.3f (%.6f) | avg. error: %.1f%% | %.1fs",
+                i, alpha, new_cost, new_cost - previous_cost, 100.0 * d_sum / values, time.time() - start_time)
             if new_cost < previous_cost:
                 x, theta = x_new, theta_new
                 previous_cost = new_cost
@@ -125,7 +125,10 @@ def step(y, r, x, theta, l, alpha):
 
 
 def cost(y, r, x, theta, l):
-    return (get_d(y, r, x, theta) ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
+    d = get_d(y, r, x, theta)
+    d_sum = d.sum()
+    d *= d  # elements squared
+    return d_sum, d.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
 def write_output(output, rows, columns, num_features, l, cost, x, theta):
