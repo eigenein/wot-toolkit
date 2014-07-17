@@ -73,9 +73,9 @@ def normalize(y, r):
 
 
 def initialize_parameters(y_shape, num_features):
-    x = numpy.random.rand(y_shape[0], num_features)
+    x = numpy.random.rand(y_shape[0], num_features).astype(DTYPE)
     x *= 0.001
-    theta = numpy.random.rand(y_shape[1], num_features)
+    theta = numpy.random.rand(y_shape[1], num_features).astype(DTYPE)
     theta *= 0.001
     return x, theta
 
