@@ -86,15 +86,17 @@ def gradient_descent(y, r, x, theta, l):
 
     try:
         for i in itertools.count(1):
+            logging.debug("Doing step.")
             x_new, theta_new = step(y, r, x, theta, l, alpha)
+            logging.debug("Computing new cost.")
             new_cost = cost(y, r, x_new, theta_new, l)
+            logging.info("#%d | alpha: %.3f | cost: %.3f | delta: %.6f", i, alpha, previous_cost, new_cost - previous_cost)
             if new_cost < previous_cost:
                 x, theta = x_new, theta_new
                 previous_cost = new_cost
                 alpha *= 1.1
             else:
                 alpha *= 0.5
-            logging.info("#%d | alpha: %.3f | cost: %.3f | delta: %.6f", i, alpha, previous_cost, new_cost - previous_cost)
     except KeyboardInterrupt:
         pass
 
