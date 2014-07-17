@@ -46,7 +46,7 @@ def main(args):
     logging.info("Cost improved by %.1fx.", initial_cost / final_cost)
 
     logging.info("Writing output profile.")
-    write_output(args.output, rows, columns, args.num_features, args.lambda_, final_cost, x, theta)
+    write_output(args.output, rows, columns, args.num_features, args.lambda_, final_cost, x, theta, mean)
 
     logging.info("Finished.")
 
@@ -131,11 +131,12 @@ def cost(y, r, x, theta, l):
     return d_sum, d.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
-def write_output(output, rows, columns, num_features, l, cost, x, theta):
+def write_output(output, rows, columns, num_features, l, cost, x, theta, mean):
     output.write(b"wowpthetax")
     output.write(struct.pack("=hihff", rows, columns, num_features, l, cost))
     write_matrix(output, x)
     write_matrix(output, theta)
+    write_matrix(output, mean)
 
 
 def write_matrix(output, matrix):
