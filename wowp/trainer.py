@@ -125,7 +125,7 @@ def step(y, r, x, theta, l, alpha):
 
 
 def cost(y, r, x, theta, l):
-    d = get_d(y, r, x, theta)
+    d = get_d(y, r, x, theta).abs()
     d_sum = d.sum()
     d *= d  # elements squared
     return d_sum, d.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
