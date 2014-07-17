@@ -8,6 +8,7 @@ import itertools
 import logging
 import pickle
 import struct
+import time
 
 import numpy
 
@@ -86,11 +87,13 @@ def gradient_descent(y, r, x, theta, l):
 
     try:
         for i in itertools.count(1):
+            start_time = time.time()
             logging.debug("Doing step.")
             x_new, theta_new = step(y, r, x, theta, l, alpha)
             logging.debug("Computing new cost.")
             new_cost = cost(y, r, x_new, theta_new, l)
-            logging.info("#%d | alpha: %.3f | cost: %.3f | delta: %.6f", i, alpha, new_cost, new_cost - previous_cost)
+            logging.info("#%d | alpha: %.6f | cost: %.3f | delta: %.6f | %.1fs",
+                i, alpha, new_cost, new_cost - previous_cost, time.time() - start_time)
             if new_cost < previous_cost:
                 x, theta = x_new, theta_new
                 previous_cost = new_cost
@@ -108,8 +111,7 @@ def get_d(y, r, x, theta):
 def step(y, r, x, theta, l, alpha):
     d = get_d(y, r, x, theta)
     x_grad = d.dot(theta) + l * x
-    d = d.T
-    theta_grad = d.dot(x) + l * theta
+    theta_grad = x.T.dot(d).T + l * theta
     return (x - alpha * x_grad, theta - alpha * theta_grad)
 
 
