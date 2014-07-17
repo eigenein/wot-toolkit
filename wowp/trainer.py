@@ -40,7 +40,12 @@ def main(args):
     x, theta = initialize_parameters(y.shape, args.num_features)
 
     logging.info("Gradient descent.")
-    gradient_descent(y, r, x, theta, args.lambda_)
+    x, theta, cost = gradient_descent(y, r, x, theta, args.lambda_)
+
+    logging.info("Writing output profile.")
+    write_output(args.output, rows, columns, args.num_features, args.lambda_, cost, x, theta)
+
+    logging.info("Finished.")
 
 
 def read_y(input, planes, rows, columns):
@@ -75,14 +80,12 @@ def normalize(y, r):
 
 def initialize_parameters(y_shape, num_features):
     x = numpy.random.rand(y_shape[0], num_features).astype(DTYPE)
-    x *= 0.001
     theta = numpy.random.rand(y_shape[1], num_features).astype(DTYPE)
-    theta *= 0.001
     return x, theta
 
 
 def gradient_descent(y, r, x, theta, l):
-    alpha = 0.001
+    alpha = 0.000001
     previous_cost = float("+inf")
 
     try:
@@ -92,7 +95,7 @@ def gradient_descent(y, r, x, theta, l):
             x_new, theta_new = step(y, r, x, theta, l, alpha)
             logging.debug("Computing new cost.")
             new_cost = cost(y, r, x_new, theta_new, l)
-            logging.info("#%d | alpha: %.6f | cost: %.3f | delta: %.6f | %.1fs",
+            logging.info("#%d | alpha: %.9f | cost: %.3f | delta: %.6f | %.1fs",
                 i, alpha, new_cost, new_cost - previous_cost, time.time() - start_time)
             if new_cost < previous_cost:
                 x, theta = x_new, theta_new
@@ -102,6 +105,8 @@ def gradient_descent(y, r, x, theta, l):
                 alpha *= 0.5
     except KeyboardInterrupt:
         pass
+
+    return x, theta, previous_cost
 
 
 def get_d(y, r, x, theta):
@@ -119,12 +124,26 @@ def cost(y, r, x, theta, l):
     return (get_d(y, r, x, theta) ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
+def write_output(output, rows, columns, num_features, l, cost, x, theta):
+    output.write(b"wowpthetax")
+    output.write(struct.pack("=hihff", rows, columns, num_features, l, cost))
+    write_matrix(output, x)
+    write_matrix(output, theta)
+
+
+def write_matrix(output, matrix):
+    for i in range(matrix.shape[0]):
+        for j in range(matrix.shape[1]):
+            output.write(struct.pack("=f", matrix[i, j]))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument("-i", "--input", help="input file", metavar="<my.wowpstats>", required=True, type=argparse.FileType("rb"))
     parser.add_argument("--planes", help="plane list", metavar="<planes.pickle>", required=True, type=argparse.FileType("rb"))
-    parser.add_argument("--lambda", default=1.0, dest="lambda_", help="regularization parameter (default: %(default)s)", metavar="<lambda>", type=float)
-    parser.add_argument("--num-features", default=16, dest="num_features", help="number of features (default: %(default)s)", metavar="<number of features>", type=int)
+    parser.add_argument("--lambda", default=0.0, dest="lambda_", help="regularization parameter (default: %(default)s)", metavar="<lambda>", type=float)
+    parser.add_argument("--num-features", default=4, dest="num_features", help="number of features (default: %(default)s)", metavar="<number of features>", type=int)
+    parser.add_argument("-o", "--output", help="output profile", metavar="<my.wowpthetax>", type=argparse.FileType("wb"))
     args = parser.parse_args()
     logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.DEBUG)
     main(args)
