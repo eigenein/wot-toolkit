@@ -4,6 +4,7 @@
 import sys; sys.dont_write_bytecode = True
 
 import argparse
+import itertools
 import logging
 import pickle
 import struct
@@ -34,6 +35,12 @@ def main(args):
     logging.info("Feature normalization.")
     y, mean = normalize(y, r)
 
+    logging.info("Initializing parameters.")
+    x, theta = initialize_parameters(y.shape, args.num_features)
+
+    logging.info("Gradient descent.")
+    gradient_descent(y, r, x, theta, args.lambda_)
+
 
 def read_y(input, planes, rows, columns):
     y = numpy.zeros((rows, columns), dtype=DTYPE)
@@ -60,14 +67,60 @@ def normalize(y, r):
     mean = y.sum(1) / r.sum(1)
     mean = numpy.nan_to_num(mean)
     mean = mean.reshape((mean.size, 1))
-    y = (y - mean) * r
+    y -= mean
+    y *= r
     return y, mean
+
+
+def initialize_parameters(y_shape, num_features):
+    x = numpy.random.rand(y_shape[0], num_features)
+    x *= 0.001
+    theta = numpy.random.rand(y_shape[1], num_features)
+    theta *= 0.001
+    return x, theta
+
+
+def gradient_descent(y, r, x, theta, l):
+    alpha = 0.001
+    previous_cost = float("+inf")
+
+    try:
+        for i in itertools.count(1):
+            x_new, theta_new = step(y, r, x, theta, l, alpha)
+            new_cost = cost(y, r, x_new, theta_new, l)
+            if new_cost < previous_cost:
+                x, theta = x_new, theta_new
+                previous_cost = new_cost
+                alpha *= 1.1
+            else:
+                alpha *= 0.5
+            logging.info("#%d | alpha: %.3f | cost: %.3f | delta: %.6f", i, alpha, previous_cost, new_cost - previous_cost)
+    except KeyboardInterrupt:
+        pass
+
+
+def get_d(y, r, x, theta):
+    return (x.dot(theta.T) - y) * r
+
+
+def step(y, r, x, theta, l, alpha):
+    d = get_d(y, r, x, theta)
+    x_grad = d.dot(theta) + l * x
+    d = d.T
+    theta_grad = d.dot(x) + l * theta
+    return (x - alpha * x_grad, theta - alpha * theta_grad)
+
+
+def cost(y, r, x, theta, l):
+    return (get_d(y, r, x, theta) ** 2).sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train model.")
     parser.add_argument("-i", "--input", help="input file", metavar="<my.wowpstats>", required=True, type=argparse.FileType("rb"))
     parser.add_argument("--planes", help="plane list", metavar="<planes.pickle>", required=True, type=argparse.FileType("rb"))
+    parser.add_argument("--lambda", default=1.0, dest="lambda_", help="regularization parameter (default: %(default)s)", metavar="<lambda>", type=float)
+    parser.add_argument("--num-features", default=16, dest="num_features", help="number of features (default: %(default)s)", metavar="<number of features>", type=int)
     args = parser.parse_args()
     logging.basicConfig(format="%(asctime)s [%(levelname)s] %(message)s", level=logging.DEBUG)
     main(args)
