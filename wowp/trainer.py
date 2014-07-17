@@ -90,7 +90,7 @@ def gradient_descent(y, r, x, theta, l):
             x_new, theta_new = step(y, r, x, theta, l, alpha)
             logging.debug("Computing new cost.")
             new_cost = cost(y, r, x_new, theta_new, l)
-            logging.info("#%d | alpha: %.3f | cost: %.3f | delta: %.6f", i, alpha, previous_cost, new_cost - previous_cost)
+            logging.info("#%d | alpha: %.3f | cost: %.3f | delta: %.6f", i, alpha, new_cost, new_cost - previous_cost)
             if new_cost < previous_cost:
                 x, theta = x_new, theta_new
                 previous_cost = new_cost
