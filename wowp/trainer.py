@@ -99,9 +99,9 @@ def gradient_descent(y, r, x, theta, l, initial_cost):
             logging.debug("Doing step.")
             x_new, theta_new = step(y, r, x, theta, l, alpha)
             logging.debug("Computing new cost.")
-            d_sum, new_cost = cost(y, r, x_new, theta_new, l)
-            logging.info("#%d | alpha: %.9f | cost: %.3f (%.6f) | avg. error: %.1f%% | %.1fs",
-                i, alpha, new_cost, new_cost - previous_cost, 100.0 * d_sum / values, time.time() - start_time)
+            d_sum, max_error, new_cost = cost(y, r, x_new, theta_new, l)
+            logging.info("#%d | rate: %.9f | cost: %.3f (%.6f) | max.: %.1f%% | avg.: %.1f%% | %.1fs",
+                i, alpha, new_cost, new_cost - previous_cost, 100.0 * max_error, 100.0 * d_sum / values, time.time() - start_time)
             if new_cost < previous_cost:
                 x, theta = x_new, theta_new
                 previous_cost = new_cost
@@ -127,9 +127,10 @@ def step(y, r, x, theta, l, alpha):
 
 def cost(y, r, x, theta, l):
     d = numpy.abs(get_d(y, r, x, theta))
+    max_error = d.max()
     d_sum = d.sum()
     d *= d  # elements squared
-    return d_sum, d.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
+    return d_sum, max_error, d.sum() / 2.0 + l * (theta ** 2).sum() / 2.0 + l * (x ** 2).sum() / 2.0
 
 
 def write_output(output, rows, columns, num_features, l, cost, x, theta, mean):
