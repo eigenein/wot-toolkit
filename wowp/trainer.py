@@ -136,8 +136,11 @@ def cost(y, r, x, theta, l):
 def write_output(output, rows, columns, num_features, l, cost, x, theta, mean):
     output.write(b"wowpthetax")
     output.write(struct.pack("=hihff", rows, columns, num_features, l, cost))
+    logging.info("Writing x.")
     write_matrix(output, x)
+    logging.info("Writing theta.")
     write_matrix(output, theta)
+    logging.info("Writing mean.")
     write_matrix(output, mean)
 
 
