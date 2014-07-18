@@ -36,6 +36,9 @@ def main(args):
     logging.info("Feature normalization.")
     y, mean = normalize(y, r)
 
+    logging.info("Preprocess rating.")
+    y = preprocess_rating(y)
+
     logging.info("Initializing parameters.")
     x, theta = initialize_parameters(y.shape, args.num_features)
     initial_cost = cost(y, r, x, theta, args.lambda_)[2]
@@ -80,6 +83,16 @@ def normalize(y, r):
     y -= mean
     y *= r
     return y, mean
+
+
+def preprocess_rating(x):
+    return x
+    # return 1.0 / (1.0 + numpy.exp(x * 20.0)) - 0.5
+
+
+def postprocess_result(x):
+    return x
+    # return numpy.log(1.0 / (x + 0.5) - 1.0) / 20.0
 
 
 def initialize_parameters(y_shape, num_features):

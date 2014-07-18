@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import sys; sys.dont_write_bytecode = True
+
 import argparse
 import logging
 import pickle
 import struct
 
 import numpy
+
+import trainer
 
 
 def main(args):
@@ -50,7 +54,7 @@ def read_matrix(input, rows, columns):
 
 
 def predict(x, theta, mean, i):
-    return x.dot(theta[i].T) + mean
+    return trainer.postprocess_result(x.dot(theta[i].T)) + mean
 
 
 def sort(p, planes):
