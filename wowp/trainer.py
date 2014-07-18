@@ -38,7 +38,7 @@ def main(args):
 
     logging.info("Initializing parameters.")
     x, theta = initialize_parameters(y.shape, args.num_features)
-    initial_cost = cost(y, r, x, theta, args.lambda_)[1]
+    initial_cost = cost(y, r, x, theta, args.lambda_)[2]
     logging.info("Initial cost: %.6f.", initial_cost)
 
     logging.info("Gradient descent.")
