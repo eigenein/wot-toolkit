@@ -83,8 +83,8 @@ def normalize(y, r):
 
 
 def initialize_parameters(y_shape, num_features):
-    x = numpy.random.rand(y_shape[0], num_features).astype(DTYPE)
-    theta = numpy.random.rand(y_shape[1], num_features).astype(DTYPE)
+    x = numpy.random.rand(y_shape[0], num_features).astype(DTYPE) - 0.5
+    theta = numpy.random.rand(y_shape[1], num_features).astype(DTYPE) - 0.5
     return x, theta
 
 
@@ -102,7 +102,7 @@ def gradient_descent(y, r, x, theta, l, initial_cost):
             d_sum, max_error, new_cost = cost(y, r, x_new, theta_new, l)
             logging.info("#%d | rate: %.9f | cost: %.3f (%.6f) | max.: %.1f%% | avg.: %.1f%% | %.1fs",
                 i, alpha, new_cost, new_cost - previous_cost, 100.0 * max_error, 100.0 * d_sum / values, time.time() - start_time)
-            if new_cost < previous_cost:
+            if new_cost <= previous_cost:
                 x, theta = x_new, theta_new
                 previous_cost = new_cost
                 alpha *= 1.1
