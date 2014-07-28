@@ -120,7 +120,7 @@ def collect_planes(data, min_battles, output):
         row = []
         for plane in planes:
             if plane["battles"] >= min_battles:
-                row.append((plane["plane_id"], plane["wins"] / plane["battles"]))
+                row.append((plane["plane_id"], 100.0 * plane["wins"] / plane["battles"]))
                 values += 1
         if not row:
             continue

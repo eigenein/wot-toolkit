@@ -64,7 +64,7 @@ def sort(p, planes):
 
 def print_items(items):
     for rating, name in items:
-        print("%5.1f%%  %s" % (rating * 100.0, name))
+        print("%6.2f  %s" % (rating, name))
 
 
 if __name__ == "__main__":

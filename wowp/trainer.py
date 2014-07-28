@@ -113,8 +113,8 @@ def gradient_descent(y, r, x, theta, l, initial_cost):
             x_new, theta_new = step(y, r, x, theta, l, alpha)
             logging.debug("Computing new cost.")
             d_sum, max_error, new_cost = cost(y, r, x_new, theta_new, l)
-            logging.info("#%d | rate: %.9f | cost: %.3f (%.6f) | max.: %.1f%% | avg.: %.1f%% | %.1fs",
-                i, alpha, new_cost, new_cost - previous_cost, 100.0 * max_error, 100.0 * d_sum / values, time.time() - start_time)
+            logging.info("#%d | rate: %.9f | cost: %.3f (%.6f) | max.: %.2f | avg.: %.2f | %.1fs",
+                i, alpha, new_cost, new_cost - previous_cost, max_error, d_sum / values, time.time() - start_time)
             if new_cost <= previous_cost:
                 x, theta = x_new, theta_new
                 previous_cost = new_cost
