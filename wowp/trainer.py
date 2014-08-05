@@ -13,7 +13,6 @@ import time
 import numpy
 
 import collect
-import repair
 
 
 DTYPE = numpy.float32
@@ -24,7 +23,7 @@ def main(args):
     planes = pickle.load(args.planes)
 
     logging.info("Reading header.")
-    header, (*magic, columns, rows, values) = repair.read_header(args.input)
+    header, (*magic, columns, rows, values) = read_header(args.input)
     logging.info("Rows: %d. Columns: %d. Values: %d.", rows, columns, values)
     if rows != len(planes):
         logging.warning("Expected %d planes but found %d.", len(planes), rows)
@@ -52,6 +51,11 @@ def main(args):
     write_output(args.output, rows, columns, args.num_features, args.lambda_, final_cost, x, theta, mean)
 
     logging.info("Finished.")
+
+
+def read_header(input):
+    header = input.read(collect.HEADER_LENGTH)
+    return header, struct.unpack(collect.HEADER_FORMAT, header)
 
 
 def read_y(input, planes, accounts, rows, columns):
