@@ -5,17 +5,19 @@ typedef struct {
     PyObject_HEAD
     int row_count;
     int column_count;
+    int value_count;
     int *rows;
     int *columns;
     double *values;
 } Model;
 
 static PyObject *
-modelType_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
+model_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
     Model *self = (Model*)type->tp_alloc(type, 0);
     if (self != NULL) {
         self->row_count = 0;
         self->column_count = 0;
+        self->value_count = 0;
         self->rows = NULL;
         self->columns = NULL;
         self->values = NULL;
@@ -23,26 +25,59 @@ modelType_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
     return (PyObject*)self;
 }
 
+int alloc_wrapper(size_t n, void **p) {
+    *p = PyMem_RawMalloc(n);
+    if (*p != NULL) {
+        return 1;
+    } else {
+        PyErr_SetString(PyExc_MemoryError, "not enough memory");
+        return 0;
+    }
+}
+
 static int
-modelType_init(Model *self, PyObject *args, PyObject *kwargs) {
+model_init(Model *self, PyObject *args, PyObject *kwargs) {
+    // Parse arguments.
+    static char *kwlist[] = {"row_count", "column_count", "value_count", "data", NULL};
+    PyObject *data;
+    if (!PyArg_ParseTupleAndKeywords(
+        args,
+        kwargs,
+        "iiiO",
+        kwlist,
+        &self->row_count,
+        &self->column_count,
+        &self->value_count,
+        &data
+    )) {
+        return -1;
+    }
+    // Allocate memory.
+    if (
+        !alloc_wrapper(self->row_count * sizeof(int), (void**)&self->rows) ||
+        !alloc_wrapper(self->column_count * sizeof(int), (void**)&self->columns) ||
+        !alloc_wrapper(self->value_count * sizeof(double), (void**)&self->values)
+    ) {
+        return -1;
+    }
     return 0;
 }
 
 static void
-modelType_dealloc(Model *self) {
+model_dealloc(Model *self) {
     PyMem_RawFree(self->rows);
     PyMem_RawFree(self->columns);
     PyMem_RawFree(self->values);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static PyMemberDef Model_members[] = {
+static PyMemberDef model_members[] = {
     {"row_count", T_INT, offsetof(Model, row_count), 0, "Row count."},
     {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
     {NULL}
 };
 
-static PyMethodDef Model_methods[] = {
+static PyMethodDef model_methods[] = {
     {NULL}
 };
 
@@ -51,7 +86,7 @@ static PyTypeObject ModelType = {
     /* tp_name */          "trainer.Model",
     /* tp_basicsize */      sizeof(Model),
     /* tp_itemsize */       0,
-    /* tp_dealloc */        (destructor)modelType_dealloc,
+    /* tp_dealloc */        (destructor)model_dealloc,
     /* tp_print */          0,
     /* tp_getattr */        0,
     /* tp_setattr */        0,
@@ -74,17 +109,17 @@ static PyTypeObject ModelType = {
     /* tp_weaklistoffset */ 0,
     /* tp_iter */           0,
     /* tp_iternext */       0,
-    /* tp_methods */        Model_methods,
-    /* tp_members */        Model_members,
+    /* tp_methods */        model_methods,
+    /* tp_members */        model_members,
     /* tp_getset */         0,
     /* tp_base */           0,
     /* tp_dict */           0,
     /* tp_descr_get */      0,
     /* tp_descr_set */      0,
     /* tp_dictoffset */     0,
-    /* tp_init */           (initproc)modelType_init,
+    /* tp_init */           (initproc)model_init,
     /* tp_alloc */          0,
-    /* tp_new */            modelType_new,
+    /* tp_new */            model_new,
 };
 
 static PyModuleDef trainermodule = {
