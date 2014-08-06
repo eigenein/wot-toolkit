@@ -37,6 +37,8 @@ def main(args):
     logging.info("Gradient descent.")
     gradient_descent(model, initial_rmse)
 
+    logging.info("Base: %.6f.", model.base)
+
     logging.info("Finished.")
 
 
@@ -80,7 +82,7 @@ def gradient_descent(model, initial_rmse):
                 "#%d | a: %.9f | rmse %.6f | d_rmse: %.6f | max: %.6f | avg: %.6f",
                 iteration, alpha, rmse, rmse - previous_rmse, max_error, average_error,
             )
-            alpha *= 1.05 if rmse < previous_rmse else 0.5
+            alpha *= 1.01 if rmse < previous_rmse else 0.5
             previous_rmse = rmse
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")

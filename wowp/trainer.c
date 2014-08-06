@@ -178,7 +178,7 @@ double features_dot(Model *self, int row, int column) {
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     double alpha;
-    int i, j, row, column, row_offset, column_offset;
+    int i, j;
     double rmse = 0.0, max_error = 0.0, average_error = 0.0;
 
     static char *kwlist[] = {"alpha", NULL};
@@ -187,8 +187,8 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
     }
 
     for (i = 0; i < self->value_count; i++) {
-        row = self->rows[i];
-        column = self->columns[i];
+        int row = self->rows[i];
+        int column = self->columns[i];
         // Update error.
         double error = self->values[i] - (
             self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
@@ -201,12 +201,13 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         self->column_bases[column] += alpha * (error - self->lambda * self->column_bases[column]);
         // Update features.
         for (j = 0; j < self->feature_count; j++) {
-            row_offset = row * self->feature_count + j;
-            column_offset = column * self->feature_count + j;
+            int row_offset = row * self->feature_count + j;
+            int column_offset = column * self->feature_count + j;
+            double row_feature = self->row_features[row_offset];
             self->row_features[row_offset] += alpha * (
                 error * self->column_features[column_offset] - self->lambda * self->row_features[row_offset]);
             self->column_features[column_offset] += alpha * (
-                error * self->row_features[row_offset] - self->lambda * self->column_features[column_offset]);
+                error * row_feature - self->lambda * self->column_features[column_offset]);
         }
     }
     // Return error.
