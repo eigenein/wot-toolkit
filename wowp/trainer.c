@@ -110,8 +110,6 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
     Py_RETURN_NONE;
 }
 
-#define SWAP(array, i, j, temp_type) { temp_type temp = array[i]; array[i] = array[j]; array[j] = temp; }
-
 double
 rand_wrapper(double randomness) {
     return randomness * (1.0 * rand() / RAND_MAX - 0.5);
@@ -147,6 +145,8 @@ model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
 
     Py_RETURN_NONE;
 }
+
+#define SWAP(array, i, j, temp_type) { temp_type temp = array[i]; array[i] = array[j]; array[j] = temp; }
 
 static PyObject *
 model_shuffle(Model *self) {
@@ -212,6 +212,65 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
     return Py_BuildValue("d", rmse);
 }
 
+/*
+  Model getters.
+--------------------------------------------------------------------------------
+ */
+
+static PyObject *
+model_get_base(Model *self) {
+    return PyFloat_FromDouble(self->base);
+}
+
+static PyObject *
+model_get_row_base(Model *self, PyObject *args, PyObject *kwargs) {
+    int row;
+    static char *kwlist[] = {"row", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", kwlist, &row)) {
+        return NULL;
+    }
+    return PyFloat_FromDouble(self->row_bases[row]);
+}
+
+static PyObject *
+model_get_column_base(Model *self, PyObject *args, PyObject *kwargs) {
+    int column;
+    static char *kwlist[] = {"column", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", kwlist, &column)) {
+        return NULL;
+    }
+    return PyFloat_FromDouble(self->column_bases[column]);
+}
+
+static PyObject *
+model_get_row_feature(Model *self, PyObject *args, PyObject *kwargs) {
+    int row, j;
+    static char *kwlist[] = {"row", "j", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii", kwlist, &row, &j)) {
+        return NULL;
+    }
+    return PyFloat_FromDouble(self->row_features[row * self->feature_count + j]);
+}
+
+static PyObject *
+model_get_column_feature(Model *self, PyObject *args, PyObject *kwargs) {
+    int column, j;
+    static char *kwlist[] = {"column", "j", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii", kwlist, &column, &j)) {
+        return NULL;
+    }
+    return PyFloat_FromDouble(self->column_features[column * self->feature_count + j]);
+}
+
+static PyObject *
+model_predict(Model *self, PyObject *args, PyObject *kwargs) {
+    int row, column;
+    static char *kwlist[] = {"row", "column", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii", kwlist, &row, &column)) {
+        return NULL;
+    }
+    return PyFloat_FromDouble(self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
+}
 
 /*
   Model definition.
@@ -231,6 +290,12 @@ static PyMethodDef model_methods[] = {
     {"prepare", (PyCFunction)model_prepare, METH_VARARGS | METH_KEYWORDS, "Prepares model for training."},
     {"shuffle", (PyCFunction)model_shuffle, METH_NOARGS, "Shuffles values."},
     {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does gradient descent step."},
+    {"get_base", (PyCFunction)model_get_base, METH_NOARGS, "Gets learned base predictor."},
+    {"get_row_base", (PyCFunction)model_get_row_base, METH_VARARGS | METH_KEYWORDS, "Gets learned row base predictor."},
+    {"get_column_base", (PyCFunction)model_get_column_base, METH_VARARGS | METH_KEYWORDS, "Gets learned column base predictor."},
+    {"get_row_feature", (PyCFunction)model_get_row_feature, METH_VARARGS | METH_KEYWORDS, "Gets learned row feature."},
+    {"get_column_feature", (PyCFunction)model_get_column_feature, METH_VARARGS | METH_KEYWORDS, "Gets learned column feature."},
+    {"predict", (PyCFunction)model_predict, METH_VARARGS | METH_KEYWORDS, "Predicts rating."},
     {NULL}
 };
 
