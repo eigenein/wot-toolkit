@@ -6,6 +6,7 @@ import sys; sys.dont_write_bytecode = True
 import argparse
 import itertools
 import logging
+import operator
 import pickle
 import struct
 import time
@@ -38,6 +39,14 @@ def main(args):
     gradient_descent(model, initial_rmse)
 
     logging.info("Base: %.6f.", model.base)
+
+    # Debug code for account #191824 (5589968).
+    # ./train.py -i 20140729-2241.wowpstats --planes planes.pickle -o my.wowpthetax --accounts accounts.txt --num-features 256
+    logging.info("Predicting.")
+    predictions = [(plane[1], model.predict(plane[0], 191824)) for plane in planes.values()]
+    predictions = sorted(predictions, key=operator.itemgetter(1), reverse=True)
+    for name, prediction in predictions:
+        logging.info("%020s: %4.1f", name, prediction)
 
     logging.info("Finished.")
 
