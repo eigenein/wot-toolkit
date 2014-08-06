@@ -4,6 +4,7 @@
 import sys; sys.dont_write_bytecode = True
 
 import argparse
+import itertools
 import logging
 import pickle
 import struct
@@ -28,13 +29,13 @@ def main(args):
     initialize_model(model, args.input, planes, args.accounts)
     model.prepare(0.5)
 
-    logging.info("Initial RMSE: %.6f.", model.step(0.0))
+    initial_rmse, max_error, average_error = model.step(0.0)
+    logging.info("Initial RMSE: %.6f.", initial_rmse)
+    logging.info("Initial max error: %.6f.", max_error)
+    logging.info("Initial avg error: %.6f.", average_error)
 
     logging.info("Gradient descent.")
-    gradient_descent(model)
-
-    # logging.info("Writing output profile.")
-    # write_output(args.output, row_count, column_count, args.feature_count, args.lambda_, final_cost, x, theta, mean)
+    gradient_descent(model, initial_rmse)
 
     logging.info("Finished.")
 
@@ -45,15 +46,17 @@ def read_header(input):
 
 
 def initialize_model(model, input, planes, accounts):
+    index = 0
     try:
-        for j in range(column_count):
+        for j in range(model.column_count):
             account_id, column = read_column(input)
             print(j, account_id, file=accounts)
             for plane_id, rating in column:
                 i = planes[plane_id][0]
-                y[i, j], z[i, j] = rating, True
+                model.set_value(index, i, j, rating)
+                index += 1
             if j % 100000 == 0:
-                logging.info("%d columns | %.1f%%", j, 100.0 * j / column_count)
+                logging.info("%d columns | %.1f%%", j, (100.0 * j) / model.column_count)
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
     return model
@@ -64,8 +67,23 @@ def read_column(input):
     return account_id, [struct.unpack(collect.RATING_FORMAT, input.read(collect.RATING_LENGTH)) for i in range(values)]
 
 
-def gradient_descent(model):
-    pass
+def gradient_descent(model, initial_rmse):
+    alpha, previous_rmse = 0.001, initial_rmse
+    try:
+        for iteration in itertools.count(1):
+            model.shuffle()
+            rmse, max_error, average_error = model.step(alpha)
+            if alpha < 1e-09:
+                logging.warning("Learning rate is too small. Stopping.")
+                break
+            logging.info(
+                "#%d | a: %.9f | rmse %.6f | d_rmse: %.6f | max: %.6f | avg: %.6f",
+                iteration, alpha, rmse, rmse - previous_rmse, max_error, average_error,
+            )
+            alpha *= 1.05 if rmse < previous_rmse else 0.5
+            previous_rmse = rmse
+    except KeyboardInterrupt:
+        logging.warning("Interrupted by user.")
 
 
 if __name__ == "__main__":

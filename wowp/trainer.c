@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <time.h>
+#include <math.h>
 
 #include <Python.h>
 #include <structmember.h>
@@ -179,7 +179,7 @@ static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     double alpha;
     int i, j, row, column, row_offset, column_offset;
-    double rmse = 0.0;
+    double rmse = 0.0, max_error = 0.0, average_error = 0.0;
 
     static char *kwlist[] = {"alpha", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "d", kwlist, &alpha)) {
@@ -193,6 +193,8 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         double error = self->values[i] - (
             self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
         rmse += error * error;
+        max_error = fmax(max_error, fabs(error));
+        average_error += fabs(error);
         // Update base predictors.
         self->base += alpha * error;
         self->row_bases[row] += alpha * (error - self->lambda * self->row_bases[row]);
@@ -209,7 +211,8 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
     }
     // Return error.
     rmse /= self->value_count;
-    return Py_BuildValue("d", rmse);
+    average_error /= self->value_count;
+    return Py_BuildValue("(ddd)", rmse, max_error, average_error);
 }
 
 /*
@@ -278,9 +281,9 @@ model_predict(Model *self, PyObject *args, PyObject *kwargs) {
  */
 
 static PyMemberDef model_members[] = {
-    {"row_count", T_LONG, offsetof(Model, row_count), 0, "Row count."},
-    {"column_count", T_LONG, offsetof(Model, column_count), 0, "Column count."},
-    {"value_count", T_LONG, offsetof(Model, value_count), 0, "Value count."},
+    {"row_count", T_INT, offsetof(Model, row_count), 0, "Row count."},
+    {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
+    {"value_count", T_INT, offsetof(Model, value_count), 0, "Value count."},
     {"base", T_DOUBLE, offsetof(Model, base), 0, "Base."},
     {NULL}
 };
