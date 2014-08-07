@@ -17,10 +17,10 @@ import requests
 FILE_MAGIC = b"WOTSTATS"
 ACCOUNT_MAGIC = b"$$";
 # Struct instances.
-TANK_COUNT = UINT16 = struct.Struct("<H")
-ACCOUNT_ID = LENGTH = UINT32 = struct.Struct("<I")
+LENGTH = struct.Struct("<I")
 FILE_HEADER = struct.Struct("<III")
 TANK = struct.Struct("<HII")
+ACCOUNT = struct.Struct("<IH")
 
 
 @click.command(help="Download account database.")
@@ -109,8 +109,7 @@ def get_account_tanks(session, application_id, sequence):
 def write_column(account_id, tanks, reverse_encyclopedia, output):
     "Writes account column."
     output.write(ACCOUNT_MAGIC)
-    output.write(ACCOUNT_ID.pack(account_id))
-    output.write(TANK_COUNT.pack(len(tanks)))
+    output.write(ACCOUNT.pack(account_id, len(tanks)))
     tanks = sorted(tanks, key=operator.itemgetter("tank_id"))
     for tank in tanks:
         output.write(TANK.pack(
