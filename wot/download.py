@@ -76,7 +76,7 @@ def download_database(application_id, encyclopedia, output):
                 value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
                 column_count += 1
             # Print statistics.
-            apd = 86400.0 * column_count / (time.time() - start_time)
+            apd = 86400.0 * i / (time.time() - start_time)
             logging.info(
                 "#%d | %d acc. | apd: %.1f | %d val. | %.1fMiB",
                 i, column_count, apd, value_count, output.tell() / 1048576.0,
