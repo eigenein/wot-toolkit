@@ -68,9 +68,13 @@ def download_database(application_id, encyclopedia, output):
             obj = get_account_tanks(session, application_id, sequence)
             # Iterate over accounts.
             for account_id, tanks in obj["data"].items():
-                if tanks:
-                    value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
-                    column_count += 1
+                if tanks is None:
+                    continue
+                tanks = [tank for tank in tanks if tank["statistics"]["battles"] >= 10]
+                if not tanks:
+                    continue
+                value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
+                column_count += 1
             # Print statistics.
             apd = 86400.0 * column_count / (time.time() - start_time)
             logging.info(
