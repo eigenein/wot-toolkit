@@ -25,9 +25,10 @@ ACCOUNT = struct.Struct("<IH")
 
 @click.command(help="Download account database.")
 @click.option("--application-id", default="demo", help="application ID", show_default=True)
+@click.option("--min-battles", default=50, help="minimum tank battles", show_default=True, type=int)
 @click.option("-o", "--output", help="output file", required=True, type=click.File("wb"))
 @click.option("--log", default=sys.stderr, help="log file", type=click.File("wt"))
-def main(application_id, output, log):
+def main(application_id, min_battles, output, log):
     # Initialize logging.
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=log)
     # Write empty header.
@@ -37,7 +38,7 @@ def main(application_id, output, log):
     write_json(output, encyclopedia)
     row_count = len(encyclopedia)
     # Download database.
-    column_count, value_count = download_database(application_id, encyclopedia, output)
+    column_count, value_count = download_database(application_id, min_battles, encyclopedia, output)
     # Seek to the beginning and update header.
     output.seek(0)
     write_header(output, column_count, value_count, False)
@@ -50,7 +51,7 @@ def write_header(output, column_count, value_count, is_empty):
     output.write(FILE_HEADER.pack(column_count, value_count, 0xDEADBEEF if is_empty else 0))
 
 
-def download_database(application_id, encyclopedia, output):
+def download_database(application_id, min_battles, encyclopedia, output):
     "Downloads database."
     logging.info("Starting download…")
     # Reverse encyclopedia.
@@ -70,7 +71,7 @@ def download_database(application_id, encyclopedia, output):
             for account_id, tanks in obj["data"].items():
                 if tanks is None:
                     continue
-                tanks = [tank for tank in tanks if tank["statistics"]["battles"] >= 10]
+                tanks = [tank for tank in tanks if tank["statistics"]["battles"] >= min_battles]
                 if not tanks:
                     continue
                 value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
