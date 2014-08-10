@@ -143,7 +143,7 @@ def get_response_object(response):
     response.raise_for_status()
     obj = response.json()
     if obj["status"] == "error":
-        raise ValueError("{0[code]} {0[message]}".format(obj))
+        raise ValueError("{0[code]} {0[message]}".format(obj["error"]))
     return obj
 
 
