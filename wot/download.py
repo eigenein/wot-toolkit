@@ -81,7 +81,7 @@ def download_database(application_id, start_id, last_id, min_battles, encycloped
                 value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
                 column_count += 1
             # Print statistics.
-            apd = 86400.0 * i / (time.time() - start_time)
+            apd = 86400.0 * (i - start_id) / (time.time() - start_time)
             logging.info(
                 "#%d-%d | %d acc. | apd: %.1f | %d val. | %.1fMiB",
                 id_range.start, id_range.stop, column_count, apd, value_count, output.tell() / 1048576.0,
