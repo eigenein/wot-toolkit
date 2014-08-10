@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import argparse
-import itertools
 import json
 import logging
 import operator
@@ -18,40 +17,44 @@ FILE_MAGIC = b"WOTSTATS"
 ACCOUNT_MAGIC = b"$$";
 # Struct instances.
 LENGTH = struct.Struct("<I")
-FILE_HEADER = struct.Struct("<III")
+FILE_HEADER = struct.Struct("<II")
 TANK = struct.Struct("<HII")
 ACCOUNT = struct.Struct("<IH")
 
 
 @click.command(help="Download account database.")
 @click.option("--application-id", default="demo", help="application ID", show_default=True)
-@click.option("--min-battles", default=50, help="minimum tank battles", show_default=True, type=int)
+@click.option("--start-id", default=0, help="start account ID", show_default=True, type=int)
+@click.option("--last-id", default=50000000, help="last account ID", show_default=True, type=int)
+@click.option("--min-battles", default=10, help="minimum tank battles", show_default=True, type=int)
 @click.option("-o", "--output", help="output file", required=True, type=click.File("wb"))
 @click.option("--log", default=sys.stderr, help="log file", type=click.File("wt"))
-def main(application_id, min_battles, output, log):
+def main(application_id, start_id, last_id, min_battles, output, log):
     # Initialize logging.
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=log)
     # Write empty header.
-    write_header(output, 0, 0, True)
+    write_header(output, 0, 0)
     # Download encyclopedia.
     encyclopedia = download_encyclopedia(application_id)
     write_json(output, encyclopedia)
     row_count = len(encyclopedia)
     # Download database.
-    column_count, value_count = download_database(application_id, min_battles, encyclopedia, output)
+    column_count, value_count = download_database(application_id, start_id, last_id, min_battles, encyclopedia, output)
     # Seek to the beginning and update header.
     output.seek(0)
-    write_header(output, column_count, value_count, False)
+    write_header(output, column_count, value_count)
+    # Finished.
+    logging.info("Finished: %d columns, %d values.", column_count, value_count)
 
 
-def write_header(output, column_count, value_count, is_empty):
+def write_header(output, column_count, value_count):
     "Writes database header."
     logging.info("Writing header…")
     output.write(FILE_MAGIC)
-    output.write(FILE_HEADER.pack(column_count, value_count, 0xDEADBEEF if is_empty else 0))
+    output.write(FILE_HEADER.pack(column_count, value_count))
 
 
-def download_database(application_id, min_battles, encyclopedia, output):
+def download_database(application_id, start_id, last_id, min_battles, encyclopedia, output):
     "Downloads database."
     logging.info("Starting download…")
     # Reverse encyclopedia.
@@ -63,9 +66,10 @@ def download_database(application_id, min_battles, encyclopedia, output):
     session = requests.Session()
     # Iterate over all accounts.
     try:
-        for i in itertools.count(1, 100):
+        for i in range(start_id, last_id, 100):
             # Make request.
-            sequence = ",".join(map(str, range(i, i + 100)))
+            id_range = range(i, i + 100)
+            sequence = ",".join(map(str, id_range))
             obj = get_account_tanks(session, application_id, sequence)
             # Iterate over accounts.
             for account_id, tanks in obj["data"].items():
@@ -79,8 +83,8 @@ def download_database(application_id, min_battles, encyclopedia, output):
             # Print statistics.
             apd = 86400.0 * i / (time.time() - start_time)
             logging.info(
-                "#%d | %d acc. | apd: %.1f | %d val. | %.1fMiB",
-                i, column_count, apd, value_count, output.tell() / 1048576.0,
+                "#%d-%d | %d acc. | apd: %.1f | %d val. | %.1fMiB",
+                id_range.start, id_range.stop, column_count, apd, value_count, output.tell() / 1048576.0,
             )
     except KeyboardInterrupt:
         logging.warning("Interrupted.")
