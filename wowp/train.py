@@ -30,15 +30,20 @@ def main(args):
     initialize_model(model, args.input, planes, args.accounts)
     model.prepare(0.5)
 
-    initial_rmse, _, average_error, max_error = model.step(0, model.value_count, 0.0)
+    logging.info("Initial shuffle.")
+    model.shuffle(0, model.value_count)
+    learning_set_size = value_count * 80 // 100
+    logging.info("Learning set size: %d.", learning_set_size)
+
+    logging.info("Computing initial RMSE.")
+    initial_rmse, _, _, _ = model.step(0, model.value_count, 0.0)
     logging.info("Initial RMSE: %.6f.", initial_rmse)
-    logging.info("Initial avg error: %.6f.", average_error)
-    logging.info("Initial max error: %.6f.", max_error)
 
     logging.info("Gradient descent.")
-    gradient_descent(model, initial_rmse)
+    gradient_descent(model, learning_set_size, initial_rmse)
 
-    logging.info("Base: %.6f.", model.base)
+    _, min_error, avg_error, max_error = model.step(learning_set_size, model.value_count, 0.0)
+    logging.info("Test set: min - %.9f, avg - %.9f, max - %.9f.", min_error, avg_error, max_error)
 
     # Debug code for account #191824 (5589968).
     # ./train.py -i 20140729-2241.wowpstats --planes planes.pickle -o my.wowpthetax --accounts accounts.txt --num-features 256
@@ -78,18 +83,18 @@ def read_column(input):
     return account_id, [struct.unpack(collect.RATING_FORMAT, input.read(collect.RATING_LENGTH)) for i in range(values)]
 
 
-def gradient_descent(model, initial_rmse):
+def gradient_descent(model, learning_set_size, initial_rmse):
     alpha, previous_rmse = 0.001, initial_rmse
     try:
         for iteration in itertools.count(1):
-            model.shuffle(0, model.value_count)
-            rmse, _, average_error, max_error = model.step(0, model.value_count, alpha)
+            model.shuffle(0, learning_set_size)
+            rmse, _, avg_error, max_error = model.step(0, learning_set_size, alpha)
             if alpha < 1e-09:
                 logging.warning("Learning rate is too small. Stopping.")
                 break
             logging.info(
-                "#%d | a: %.9f | rmse %.6f | d_rmse: %.6f | avg: %.6f | max: %.6f",
-                iteration, alpha, rmse, rmse - previous_rmse, average_error, max_error,
+                "#%d | a: %.9f | rmse %.9f | d_rmse: %.9f | avg: %.9f | max: %.9f",
+                iteration, alpha, rmse, rmse - previous_rmse, avg_error, max_error,
             )
             alpha *= 1.01 if rmse < previous_rmse else 0.5
             previous_rmse = rmse
