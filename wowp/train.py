@@ -35,7 +35,7 @@ def main(args):
 
     logging.info("Initial shuffle.")
     model.shuffle(0, model.value_count)
-    learning_set_size = value_count * 80 // 100
+    learning_set_size = value_count * 90 // 100
     logging.info("Learning set size: %d.", learning_set_size)
 
     logging.info("Computing initial RMSE.")
