@@ -48,7 +48,7 @@ def main(args):
     # Error distribution on test set.
     model.step(learning_set_size, model.value_count, 0.0)  # force update distribution on test set
     distribution = list(map(model.get_distribution, range(100)))
-    logging.info("Distribution:")
+    logging.info("Error distribution on test set:")
     test_set_size = model.value_count - learning_set_size
     for i in range(0, 100):
         if distribution[i] == test_set_size:
