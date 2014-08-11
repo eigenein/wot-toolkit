@@ -2,12 +2,14 @@
 # coding: utf-8
 
 import argparse
+import concurrent.futures
 import itertools
 import json
 import logging
 import operator
 import struct
 import sys
+import threading
 import time
 
 import click
@@ -20,9 +22,9 @@ FILE_MAGIC = b"WOTSTATS"
 ACCOUNT_MAGIC = b"$$";
 
 LENGTH = struct.Struct("<I")
-FILE_HEADER = struct.Struct("<II")
-TANK = struct.Struct("<HII")
-ACCOUNT = struct.Struct("<IH")
+FILE_HEADER = struct.Struct("<II")  # column_count, value_count
+TANK = struct.Struct("<HII")  # row, battles, wins
+ACCOUNT = struct.Struct("<IH")  # account_id, tank count
 
 
 @click.command(help="Download account database.")
@@ -55,6 +57,12 @@ def write_header(output, column_count, value_count):
     output.write(FILE_HEADER.pack(column_count, value_count))
 
 
+class Local(threading.local):
+    "Provides thread-local session."
+    def __init__(self):
+        self.session = requests.Session()
+
+
 def download_database(application_id, min_battles, encyclopedia, output):
     "Downloads database."
     logging.info("Starting download…")
@@ -63,29 +71,34 @@ def download_database(application_id, min_battles, encyclopedia, output):
     # Initialize statistics.
     column_count = value_count = 0
     start_time = time.time()
-    # Prepare session.
-    session = requests.Session()
     # Iterate over all accounts.
+    executor, local = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_COUNT), Local()
+    args = (",".join(map(str, range(i, i + 100))) for i in itertools.count(1, 100))
     try:
-        for i in itertools.count(1, 100):
-            # Make request.
-            sequence = ",".join(map(str, range(i, i + 100)))
-            obj = get_account_tanks(session, application_id, sequence)
-            # Iterate over accounts.
-            for account_id, tanks in obj["data"].items():
-                if tanks is None:
-                    continue
-                tanks = [tank for tank in tanks if tank["statistics"]["battles"] >= min_battles]
-                if not tanks:
-                    continue
-                value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
-                column_count += 1
-            # Print statistics.
-            apd = 86400.0 * i / (time.time() - start_time)
-            logging.info(
-                "#%d | %d acc. | apd: %.1f | %d val. | %.1fMiB",
-                i, column_count, apd, value_count, output.tell() / 1048576.0,
-            )
+        while True:
+            # Submit API requests.
+            futures = [
+                executor.submit(get_account_tanks, local, application_id, account_id)
+                for account_id in itertools.islice(args, THREAD_COUNT)
+            ]
+            # Process results.
+            for future in futures:
+                result = future.result()
+                # Iterate over accounts in result.
+                for account_id, tanks in result["data"].items():
+                    if tanks is None:
+                        continue
+                    tanks = [tank for tank in tanks if tank["statistics"]["battles"] >= min_battles]
+                    if not tanks:
+                        continue
+                    value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
+                    column_count += 1
+                # Print statistics.
+                apd = 86400.0 * column_count / (time.time() - start_time)
+                logging.info(
+                    "%d acc. | apd: %.1f | %d val. | %.1fMiB",
+                    column_count, apd, value_count, output.tell() / 1048576.0,
+                )
     except KeyboardInterrupt:
         logging.warning("Interrupted.")
     except:
@@ -93,17 +106,19 @@ def download_database(application_id, min_battles, encyclopedia, output):
     return column_count, value_count
 
 
-def get_account_tanks(session, application_id, sequence):
-    "Requests tanks for the specified account ID sequence."
+def get_account_tanks(local, application_id, account_id):
+    "Requests tanks for the specified account IDs."
     for attempt in range(10):
         if attempt:
             time.sleep(5.0)  # sleep on next retries
         try:
-            return get_response_object(session.get("http://api.worldoftanks.ru/wot/account/tanks/", params={
+            return get_response(local.session.get("http://api.worldoftanks.ru/wot/account/tanks/", params={
                 "application_id": application_id,
-                "account_id": sequence,
+                "account_id": account_id,
                 "fields": "statistics,tank_id",
             }))
+        except requests.exceptions.ConnectionError:
+            logging.warning("Connection error.")
         except KeyboardInterrupt:
             raise
         except:
@@ -132,13 +147,13 @@ def download_encyclopedia(application_id):
         "application_id": application_id,
         "fields": "tank_id,name",
     })
-    obj = get_response_object(response)
+    obj = get_response(response)
     encyclopedia = [(tank["name"], tank["tank_id"]) for tank in obj["data"].values()]
     encyclopedia = sorted(encyclopedia, key=operator.itemgetter(1))
     return encyclopedia
 
 
-def get_response_object(response):
+def get_response(response):
     "Gets response object."
     response.raise_for_status()
     obj = response.json()
