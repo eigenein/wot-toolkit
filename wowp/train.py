@@ -45,12 +45,15 @@ def main(args):
     logging.info("Gradient descent.")
     gradient_descent(model, learning_set_size, initial_rmse)
 
-    model.step(learning_set_size, model.value_count, 0.0)  # force update distribution
+    # Error distribution on test set.
+    model.step(learning_set_size, model.value_count, 0.0)  # force update distribution on test set
     distribution = list(map(model.get_distribution, range(100)))
     logging.info("Distribution:")
-    for i in range(1, 100):
-        if distribution[i] != distribution[i - 1]:
-            logging.info("  %3d: %d", i, distribution[i] - distribution[i - 1])
+    test_set_size = model.value_count - learning_set_size
+    for i in range(0, 100):
+        if distribution[i] == test_set_size:
+            break
+        logging.info("  %3d: %5.1f%%", i, 100.0 * distribution[i] / test_set_size)
 
     # Debug code for account #191824 (5589968).
     # ./train.py -i 20140729-2241.wowpstats --planes planes.pickle -o my.wowpthetax --accounts accounts.txt --num-features 256
