@@ -149,10 +149,16 @@ model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
 #define SWAP(array, i, j, temp_type) { temp_type temp = array[i]; array[i] = array[j]; array[j] = temp; }
 
 static PyObject *
-model_shuffle(Model *self) {
+model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
+    int start, stop;
     int i, j;
 
-    for (i = self->value_count - 1; i != 0; i--) {
+    static char *kwlist[] = {"start", "stop", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii", kwlist, &start, &stop)) {
+        return NULL;
+    }
+
+    for (i = stop - 1; i != start; i--) {
         j = rand() % (i + 1);
         SWAP(self->rows, i, j, int);
         SWAP(self->columns, i, j, int);
@@ -177,16 +183,17 @@ double features_dot(Model *self, int row, int column) {
 
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
+    int start, stop;
     double alpha;
     int i, j;
     double rmse = 0.0, min_error = INFINITY, average_error = 0.0, max_error = 0.0;
 
-    static char *kwlist[] = {"alpha", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "d", kwlist, &alpha)) {
+    static char *kwlist[] = {"start", "stop", "alpha", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iid", kwlist, &start, &stop, &alpha)) {
         return NULL;
     }
 
-    for (i = 0; i < self->value_count; i++) {
+    for (i = start; i < stop; i++) {
         int row = self->rows[i];
         int column = self->columns[i];
         // Update error.
@@ -295,7 +302,7 @@ static PyMemberDef model_members[] = {
 static PyMethodDef model_methods[] = {
     {"set_value", (PyCFunction)model_set_value, METH_VARARGS | METH_KEYWORDS, "Sets value."},
     {"prepare", (PyCFunction)model_prepare, METH_VARARGS | METH_KEYWORDS, "Prepares model for training."},
-    {"shuffle", (PyCFunction)model_shuffle, METH_NOARGS, "Shuffles values."},
+    {"shuffle", (PyCFunction)model_shuffle, METH_VARARGS | METH_KEYWORDS, "Shuffles values."},
     {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does gradient descent step."},
     {"get_base", (PyCFunction)model_get_base, METH_NOARGS, "Gets learned base predictor."},
     {"get_row_base", (PyCFunction)model_get_row_base, METH_VARARGS | METH_KEYWORDS, "Gets learned row base predictor."},

@@ -30,7 +30,7 @@ def main(args):
     initialize_model(model, args.input, planes, args.accounts)
     model.prepare(0.5)
 
-    initial_rmse, _, average_error, max_error = model.step(0.0)
+    initial_rmse, _, average_error, max_error = model.step(0, model.value_count, 0.0)
     logging.info("Initial RMSE: %.6f.", initial_rmse)
     logging.info("Initial avg error: %.6f.", average_error)
     logging.info("Initial max error: %.6f.", max_error)
@@ -82,8 +82,8 @@ def gradient_descent(model, initial_rmse):
     alpha, previous_rmse = 0.001, initial_rmse
     try:
         for iteration in itertools.count(1):
-            model.shuffle()
-            rmse, _, average_error, max_error = model.step(alpha)
+            model.shuffle(0, model.value_count)
+            rmse, _, average_error, max_error = model.step(0, model.value_count, alpha)
             if alpha < 1e-09:
                 logging.warning("Learning rate is too small. Stopping.")
                 break

@@ -4,7 +4,7 @@
 from distutils.core import setup, Extension
 
 
-trainer = Extension("trainer", sources=["trainer.c"])
+trainer = Extension("trainer", sources=["trainer.c"], extra_compile_args=["-O3"])
 
 setup(
     name="trainer",
