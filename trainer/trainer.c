@@ -19,6 +19,9 @@ typedef struct {
     /* regularization */         double lambda;
     /* learned features */       double *row_features;
     /* learned features */       double *column_features;
+    /* Beta features: */
+    /* distribution levels */    double distribution_levels[100];
+    /* distribution */           int distribution[100];
 } Model;
 
 /*
@@ -88,7 +91,7 @@ model_dealloc(Model *self) {
 }
 
 /*
-  Model methods.
+  Model setters.
 --------------------------------------------------------------------------------
  */
 
@@ -109,6 +112,26 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
 
     Py_RETURN_NONE;
 }
+
+static PyObject *
+model_set_distribution_level(Model *self, PyObject *args, PyObject *kwargs) {
+    int i;
+    double level;
+
+    static char *kwlist[] = {"i", "level", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "id", kwlist, &i, &level)) {
+        return NULL;
+    }
+
+    self->distribution_levels[i] = level;
+
+    Py_RETURN_NONE;
+}
+
+/*
+  Model methods.
+--------------------------------------------------------------------------------
+ */
 
 double
 rand_wrapper(double randomness) {
@@ -193,6 +216,8 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
+    memset(self->distribution, 0, sizeof(self->distribution));
+
     for (i = start; i < stop; i++) {
         int row = self->rows[i];
         int column = self->columns[i];
@@ -200,11 +225,6 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         double error = self->values[i] - (
             self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
         rmse += error * error;
-        // Statistics.
-        double abs_error = fabs(error);
-        min_error = fmin(min_error, abs_error);
-        average_error += abs_error;
-        max_error = fmax(max_error, abs_error);
         // Update base predictors.
         self->base += alpha * error;
         self->row_bases[row] += alpha * (error - self->lambda * self->row_bases[row]);
@@ -218,6 +238,17 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
                 error * self->column_features[column_offset] - self->lambda * self->row_features[row_offset]);
             self->column_features[column_offset] += alpha * (
                 error * row_feature - self->lambda * self->column_features[column_offset]);
+        }
+        // Statistics.
+        double abs_error = fabs(error);
+        min_error = fmin(min_error, abs_error);
+        average_error += abs_error;
+        max_error = fmax(max_error, abs_error);
+        // Distribution.
+        for (j = 0; j < 100; j++) {
+            if (error < self->distribution_levels[j]) {
+                self->distribution[j] += 1;
+            }
         }
     }
     // Return error.
@@ -277,6 +308,21 @@ model_get_column_feature(Model *self, PyObject *args, PyObject *kwargs) {
 }
 
 static PyObject *
+model_get_distribution(Model *self, PyObject *args, PyObject *kwargs) {
+    int i;
+    static char *kwlist[] = {"i", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", kwlist, &i)) {
+        return NULL;
+    }
+    return PyLong_FromLong(self->distribution[i]);
+}
+
+/*
+  Predicting.
+--------------------------------------------------------------------------------
+ */
+
+static PyObject *
 model_predict(Model *self, PyObject *args, PyObject *kwargs) {
     int row, column;
     static char *kwlist[] = {"row", "column", NULL};
@@ -310,6 +356,8 @@ static PyMethodDef model_methods[] = {
     {"get_row_feature", (PyCFunction)model_get_row_feature, METH_VARARGS | METH_KEYWORDS, "Gets learned row feature."},
     {"get_column_feature", (PyCFunction)model_get_column_feature, METH_VARARGS | METH_KEYWORDS, "Gets learned column feature."},
     {"predict", (PyCFunction)model_predict, METH_VARARGS | METH_KEYWORDS, "Predicts rating."},
+    {"set_distribution_level", (PyCFunction)model_set_distribution_level, METH_VARARGS | METH_KEYWORDS, "Sets distribution level."},
+    {"get_distribution", (PyCFunction)model_get_distribution, METH_VARARGS | METH_KEYWORDS, "Gets distribution item."},
     {NULL}
 };
 

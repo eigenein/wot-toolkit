@@ -28,6 +28,9 @@ def main(args):
     logging.info("Initializing model.")
     model = trainer.Model(row_count, column_count, value_count, args.feature_count, args.lambda_)
     initialize_model(model, args.input, planes, args.accounts)
+    for i in range(100):
+        model.set_distribution_level(i, float(i))
+    logging.info("Preparing model.")
     model.prepare(0.5)
 
     logging.info("Initial shuffle.")
@@ -42,13 +45,20 @@ def main(args):
     logging.info("Gradient descent.")
     gradient_descent(model, learning_set_size, initial_rmse)
 
+    model.step(learning_set_size, model.value_count, 0.0)  # force update distribution
+    distribution = list(map(model.get_distribution, range(100)))
+    logging.info("Distribution:")
+    for i in range(1, 100):
+        if distribution[i] != distribution[i - 1]:
+            logging.info("  %3d: %d", i, distribution[i] - distribution[i - 1])
+
     # Debug code for account #191824 (5589968).
     # ./train.py -i 20140729-2241.wowpstats --planes planes.pickle -o my.wowpthetax --accounts accounts.txt --num-features 256
-    logging.info("Predicting.")
-    predictions = [(plane[1], model.predict(plane[0], 191824)) for plane in planes.values()]
-    predictions = sorted(predictions, key=operator.itemgetter(1), reverse=True)
-    for name, prediction in predictions:
-        logging.info("%020s: %4.1f", name, prediction)
+    # logging.info("Predicting.")
+    # predictions = [(plane[1], model.predict(plane[0], 191824)) for plane in planes.values()]
+    # predictions = sorted(predictions, key=operator.itemgetter(1), reverse=True)
+    # for name, prediction in predictions:
+    #     logging.info("%020s: %4.1f", name, prediction)
 
     logging.info("Finished.")
 
