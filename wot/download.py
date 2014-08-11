@@ -30,10 +30,11 @@ ACCOUNT = struct.Struct("<IH")  # account_id, tank count
 
 @click.command(help="Download account database.")
 @click.option("--application-id", default="demo", help="application ID", show_default=True)
+@click.option("--threads", default=8, help="thread count", show_default=True, type=int)
 @click.option("--min-battles", default=10, help="minimum tank battles", show_default=True, type=int)
 @click.option("-o", "--output", help="output file", required=True, type=click.File("wb"))
 @click.option("--log", default=sys.stderr, help="log file", type=click.File("wt"))
-def main(application_id, min_battles, output, log):
+def main(application_id, threads, min_battles, output, log):
     # Initialize logging.
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=log)
     # Write empty header.
@@ -43,7 +44,7 @@ def main(application_id, min_battles, output, log):
     write_json(output, encyclopedia)
     row_count = len(encyclopedia)
     # Download database.
-    column_count, value_count = download_database(application_id, min_battles, encyclopedia, output)
+    column_count, value_count = download_database(application_id, max(threads, 1), min_battles, encyclopedia, output)
     # Seek to the beginning and update header.
     output.seek(0)
     write_header(output, column_count, value_count)
@@ -64,7 +65,7 @@ class Local(threading.local):
         self.session = requests.Session()
 
 
-def download_database(application_id, min_battles, encyclopedia, output):
+def download_database(application_id, thread_count, min_battles, encyclopedia, output):
     "Downloads database."
     logging.info("Starting download…")
     # Reverse encyclopedia.
@@ -73,14 +74,14 @@ def download_database(application_id, min_battles, encyclopedia, output):
     column_count = value_count = 0
     start_time = time.time()
     # Iterate over all accounts.
-    executor, local = concurrent.futures.ThreadPoolExecutor(max_workers=THREAD_COUNT), Local()
+    executor, local = concurrent.futures.ThreadPoolExecutor(max_workers=thread_count), Local()
     args = (",".join(map(str, range(i, i + 100))) for i in itertools.count(1, 100))
     try:
         while True:
             # Submit API requests.
             futures = [
                 executor.submit(get_account_tanks, local, application_id, account_id)
-                for account_id in itertools.islice(args, THREAD_COUNT)
+                for account_id in itertools.islice(args, thread_count)
             ]
             # Process results.
             for future in futures:
@@ -113,7 +114,7 @@ def get_account_tanks(local, application_id, account_id):
         if attempt:
             time.sleep(random.uniform(1.0, 5.0))  # sleep on next retries
         try:
-            return get_response(local.session.get("http://api.worldoftanks.ru/wot/account/tanks/", timeout=30.0, params={
+            return get_response(local.session.get("http://api.worldoftanks.ru/wot/account/tanks/", timeout=10.0, params={
                 "application_id": application_id,
                 "account_id": account_id,
                 "fields": "statistics,tank_id",
@@ -122,6 +123,8 @@ def get_account_tanks(local, application_id, account_id):
             logging.warning("Connection error.")
         except requests.exceptions.Timeout:
             logging.warning("Request timeout.")
+        except ValueError as e:
+            logging.warning("%s.", e)
         except KeyboardInterrupt:
             raise
         except:
