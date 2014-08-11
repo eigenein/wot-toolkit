@@ -246,7 +246,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         max_error = fmax(max_error, abs_error);
         // Distribution.
         for (j = 0; j < 100; j++) {
-            if (error < self->distribution_levels[j]) {
+            if (abs_error < self->distribution_levels[j]) {
                 self->distribution[j] += 1;
             }
         }
