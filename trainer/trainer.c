@@ -179,7 +179,7 @@ static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     double alpha;
     int i, j;
-    double rmse = 0.0, max_error = 0.0, average_error = 0.0;
+    double rmse = 0.0, min_error = INFINITY, average_error = 0.0, max_error = 0.0;
 
     static char *kwlist[] = {"alpha", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "d", kwlist, &alpha)) {
@@ -193,8 +193,11 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         double error = self->values[i] - (
             self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
         rmse += error * error;
-        max_error = fmax(max_error, fabs(error));
-        average_error += fabs(error);
+        // Statistics.
+        double abs_error = fabs(error);
+        min_error = fmin(min_error, abs_error);
+        average_error += abs_error;
+        max_error = fmax(max_error, abs_error);
         // Update base predictors.
         self->base += alpha * error;
         self->row_bases[row] += alpha * (error - self->lambda * self->row_bases[row]);
@@ -213,7 +216,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
     // Return error.
     rmse /= self->value_count;
     average_error /= self->value_count;
-    return Py_BuildValue("(ddd)", rmse, max_error, average_error);
+    return Py_BuildValue("(dddd)", rmse, min_error, average_error, max_error);
 }
 
 /*
