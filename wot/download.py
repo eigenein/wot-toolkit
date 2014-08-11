@@ -7,6 +7,7 @@ import itertools
 import json
 import logging
 import operator
+import random
 import struct
 import sys
 import threading
@@ -110,15 +111,17 @@ def get_account_tanks(local, application_id, account_id):
     "Requests tanks for the specified account IDs."
     for attempt in range(10):
         if attempt:
-            time.sleep(5.0)  # sleep on next retries
+            time.sleep(random.uniform(1.0, 5.0))  # sleep on next retries
         try:
-            return get_response(local.session.get("http://api.worldoftanks.ru/wot/account/tanks/", params={
+            return get_response(local.session.get("http://api.worldoftanks.ru/wot/account/tanks/", timeout=30.0, params={
                 "application_id": application_id,
                 "account_id": account_id,
                 "fields": "statistics,tank_id",
             }))
         except requests.exceptions.ConnectionError:
             logging.warning("Connection error.")
+        except requests.exceptions.Timeout:
+            logging.warning("Request timeout.")
         except KeyboardInterrupt:
             raise
         except:
