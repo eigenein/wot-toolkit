@@ -42,9 +42,6 @@ def main(args):
     logging.info("Gradient descent.")
     gradient_descent(model, learning_set_size, initial_rmse)
 
-    _, min_error, avg_error, max_error = model.step(learning_set_size, model.value_count, 0.0)
-    logging.info("Test set: min - %.9f, avg - %.9f, max - %.9f.", min_error, avg_error, max_error)
-
     # Debug code for account #191824 (5589968).
     # ./train.py -i 20140729-2241.wowpstats --planes planes.pickle -o my.wowpthetax --accounts accounts.txt --num-features 256
     logging.info("Predicting.")
@@ -96,6 +93,9 @@ def gradient_descent(model, learning_set_size, initial_rmse):
                 "#%d | a: %.9f | rmse %.9f | d_rmse: %.9f | avg: %.9f | max: %.9f",
                 iteration, alpha, rmse, rmse - previous_rmse, avg_error, max_error,
             )
+            if iteration % 10 == 0:
+                _, min_error, avg_error, max_error = model.step(learning_set_size, model.value_count, 0.0)
+                logging.info("Test set: min - %.9f, avg - %.9f, max - %.9f.", min_error, avg_error, max_error)
             alpha *= 1.01 if rmse < previous_rmse else 0.5
             previous_rmse = rmse
     except KeyboardInterrupt:
