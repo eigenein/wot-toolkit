@@ -141,7 +141,6 @@ rand_wrapper(double randomness) {
 static PyObject *
 model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
     double randomness;
-    int i;
 
     static char *kwlist[] = {"randomness", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "d", kwlist, &randomness)) {
@@ -150,39 +149,38 @@ model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
     // Randomize base.
     self->base = rand_wrapper(randomness);
     // Randomize row bases.
-    for (i = 0; i < self->row_count; i++) {
+    for (int i = 0; i < self->row_count; i++) {
         self->row_bases[i] = rand_wrapper(randomness);
     }
     // Randomize column bases.
-    for (i = 0; i < self->column_count; i++) {
+    for (int i = 0; i < self->column_count; i++) {
         self->column_bases[i] = rand_wrapper(randomness);
     }
     // Randomize row features.
-    for (i = 0; i < self->row_count * self->feature_count; i++) {
+    for (int i = 0; i < self->row_count * self->feature_count; i++) {
         self->row_features[i] = rand_wrapper(randomness);
     }
     // Randomize column features.
-    for (i = 0; i < self->column_count * self->feature_count; i++) {
+    for (int i = 0; i < self->column_count * self->feature_count; i++) {
         self->column_features[i] = rand_wrapper(randomness);
     }
 
     Py_RETURN_NONE;
 }
 
-#define SWAP(array, i, j, temp_type) { temp_type temp = array[i]; array[i] = array[j]; array[j] = temp; }
+#define SWAP(array, i, j, temp_type) { const temp_type temp = array[i]; array[i] = array[j]; array[j] = temp; }
 
 static PyObject *
 model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
     int start, stop;
-    int i, j;
 
     static char *kwlist[] = {"start", "stop", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii", kwlist, &start, &stop)) {
         return NULL;
     }
 
-    for (i = stop - 1; i != start; i--) {
-        j = rand() % (i + 1);
+    for (int i = stop - 1; i != start; i--) {
+        int j = rand() % (i + 1);
         SWAP(self->rows, i, j, int);
         SWAP(self->columns, i, j, int);
         SWAP(self->values, i, j, double);
@@ -192,10 +190,9 @@ model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
 }
 
 double features_dot(Model *self, int row, int column) {
-    int i;
     double dot = 0.0;
     
-    for (i = 0; i < self->feature_count; i++) {
+    for (int i = 0; i < self->feature_count; i++) {
         dot += 
             self->row_features[row * self->feature_count + i] *
             self->column_features[column * self->feature_count + i];
@@ -208,7 +205,6 @@ static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     int start, stop;
     double alpha;
-    int i, j;
     double rmse = 0.0, min_error = INFINITY, average_error = 0.0, max_error = 0.0;
 
     static char *kwlist[] = {"start", "stop", "alpha", NULL};
@@ -218,7 +214,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
 
     memset(self->distribution, 0, sizeof(self->distribution));
 
-    for (i = start; i < stop; i++) {
+    for (int i = start; i < stop; i++) {
         int row = self->rows[i];
         int column = self->columns[i];
         // Update error.
@@ -230,7 +226,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         self->row_bases[row] += alpha * (error - self->lambda * self->row_bases[row]);
         self->column_bases[column] += alpha * (error - self->lambda * self->column_bases[column]);
         // Update features.
-        for (j = 0; j < self->feature_count; j++) {
+        for (int j = 0; j < self->feature_count; j++) {
             int row_offset = row * self->feature_count + j;
             int column_offset = column * self->feature_count + j;
             double row_feature = self->row_features[row_offset];
@@ -245,7 +241,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
         // Distribution.
-        for (j = 0; j < 100; j++) {
+        for (int j = 0; j < 100; j++) {
             if (abs_error < self->distribution_levels[j]) {
                 self->distribution[j] += 1;
             }
@@ -261,11 +257,6 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
   Model getters.
 --------------------------------------------------------------------------------
  */
-
-static PyObject *
-model_get_base(Model *self) {
-    return PyFloat_FromDouble(self->base);
-}
 
 static PyObject *
 model_get_row_base(Model *self, PyObject *args, PyObject *kwargs) {
@@ -341,7 +332,7 @@ static PyMemberDef model_members[] = {
     {"row_count", T_INT, offsetof(Model, row_count), 0, "Row count."},
     {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
     {"value_count", T_INT, offsetof(Model, value_count), 0, "Value count."},
-    {"base", T_DOUBLE, offsetof(Model, base), 0, "Base."},
+    {"base", T_DOUBLE, offsetof(Model, base), 0, "Learned base predictor."},
     {NULL}
 };
 
@@ -350,7 +341,6 @@ static PyMethodDef model_methods[] = {
     {"prepare", (PyCFunction)model_prepare, METH_VARARGS | METH_KEYWORDS, "Prepares model for training."},
     {"shuffle", (PyCFunction)model_shuffle, METH_VARARGS | METH_KEYWORDS, "Shuffles values."},
     {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does gradient descent step."},
-    {"get_base", (PyCFunction)model_get_base, METH_NOARGS, "Gets learned base predictor."},
     {"get_row_base", (PyCFunction)model_get_row_base, METH_VARARGS | METH_KEYWORDS, "Gets learned row base predictor."},
     {"get_column_base", (PyCFunction)model_get_column_base, METH_VARARGS | METH_KEYWORDS, "Gets learned column base predictor."},
     {"get_row_feature", (PyCFunction)model_get_row_feature, METH_VARARGS | METH_KEYWORDS, "Gets learned row feature."},

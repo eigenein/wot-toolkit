@@ -4,7 +4,7 @@
 from distutils.core import setup, Extension
 
 
-trainer = Extension("trainer", sources=["trainer.c"], extra_compile_args=["-O3", "-funroll-loops"])
+trainer = Extension("trainer", sources=["trainer.c"], extra_compile_args=["-O3", "-std=c99"])
 
 setup(
     name="trainer",
