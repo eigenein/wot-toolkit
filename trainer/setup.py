@@ -4,7 +4,12 @@
 from distutils.core import setup, Extension
 
 
-trainer = Extension("trainer", sources=["trainer.c"], extra_compile_args=["-O3", "-std=c99"])
+trainer = Extension(
+    "trainer",
+    sources=["trainer.c"],
+    extra_compile_args=["-O3", "-std=c99", "-fopenmp"],
+    extra_link_args=["-fopenmp"],
+)
 
 setup(
     name="trainer",

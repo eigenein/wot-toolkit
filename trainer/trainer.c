@@ -191,7 +191,7 @@ model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
 
 double features_dot(Model *self, const int row, const int column) {
     double dot = 0.0;
-    
+
     for (int i = 0; i < self->feature_count; i++) {
         dot += 
             self->row_features[row * self->feature_count + i] *
@@ -214,6 +214,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
 
     memset(self->distribution, 0, sizeof(self->distribution));
 
+    #pragma omp parallel for reduction(+:rmse)
     for (int i = start; i < stop; i++) {
         const int row = self->rows[i];
         const int column = self->columns[i];
