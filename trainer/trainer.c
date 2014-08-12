@@ -180,7 +180,7 @@ model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
     }
 
     for (int i = stop - 1; i != start; i--) {
-        int j = rand() % (i + 1);
+        const int j = rand() % (i + 1);
         SWAP(self->rows, i, j, int);
         SWAP(self->columns, i, j, int);
         SWAP(self->values, i, j, double);
@@ -189,7 +189,7 @@ model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
     Py_RETURN_NONE;
 }
 
-double features_dot(Model *self, int row, int column) {
+double features_dot(Model *self, const int row, const int column) {
     double dot = 0.0;
     
     for (int i = 0; i < self->feature_count; i++) {
@@ -215,10 +215,10 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
     memset(self->distribution, 0, sizeof(self->distribution));
 
     for (int i = start; i < stop; i++) {
-        int row = self->rows[i];
-        int column = self->columns[i];
+        const int row = self->rows[i];
+        const int column = self->columns[i];
         // Update error.
-        double error = self->values[i] - (
+        const double error = self->values[i] - (
             self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
         rmse += error * error;
         // Update base predictors.
@@ -236,7 +236,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
                 error * row_feature - self->lambda * self->column_features[column_offset]);
         }
         // Statistics.
-        double abs_error = fabs(error);
+        const double abs_error = fabs(error);
         min_error = fmin(min_error, abs_error);
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
