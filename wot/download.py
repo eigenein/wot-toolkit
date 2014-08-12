@@ -74,32 +74,33 @@ def download_database(application_id, thread_count, min_battles, encyclopedia, o
     column_count = value_count = 0
     start_time = time.time()
     # Iterate over all accounts.
-    executor, local = concurrent.futures.ThreadPoolExecutor(max_workers=thread_count), Local()
+    executor, local = concurrent.futures.ThreadPoolExecutor(thread_count), Local()
     args = (",".join(map(str, range(i, i + 100))) for i in itertools.count(1, 100))
     try:
         while True:
             # Submit API requests.
             futures = [
                 executor.submit(get_account_tanks, local, application_id, account_id)
-                for account_id in itertools.islice(args, thread_count)
+                for account_id in itertools.islice(args, thread_count * 2)
             ]
             # Process results.
             for future in futures:
                 result = future.result()
                 # Iterate over accounts in result.
                 for account_id, tanks in result["data"].items():
+                    account_id = int(account_id)
                     if tanks is None:
                         continue
                     tanks = [tank for tank in tanks if tank["statistics"]["battles"] >= min_battles]
                     if not tanks:
                         continue
-                    value_count += write_column(int(account_id), tanks, reverse_encyclopedia, output)
+                    value_count += write_column(account_id, tanks, reverse_encyclopedia, output)
                     column_count += 1
                 # Print statistics.
-                apd = 86400.0 * column_count / (time.time() - start_time)
+                apd = 86400.0 * account_id / (time.time() - start_time)
                 logging.info(
-                    "%d acc. | apd: %.1f | %d val. | %.1fMiB",
-                    column_count, apd, value_count, output.tell() / 1048576.0,
+                    "#%d | %d acc. | apd: %.1f | %d val. | %.1fMiB",
+                    account_id, column_count, apd, value_count, output.tell() / 1048576.0,
                 )
     except KeyboardInterrupt:
         logging.warning("Interrupted.")
