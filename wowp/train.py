@@ -109,7 +109,7 @@ def gradient_descent(model, learning_set_size, initial_rmse):
             if iteration % 10 == 0:
                 _, min_error, avg_error, max_error = model.step(learning_set_size, model.value_count, 0.0)
                 logging.info("Test set: min - %.9f, avg - %.9f, max - %.9f.", min_error, avg_error, max_error)
-            alpha *= 1.01 if rmse < previous_rmse else 0.5
+            alpha *= 1.05 if rmse < previous_rmse else 0.5
             previous_rmse = rmse
     except KeyboardInterrupt:
         logging.warning("Interrupted by user.")
