@@ -19,9 +19,6 @@ typedef struct {
     /* regularization */         float lambda;
     /* learned features */       float *row_features;
     /* learned features */       float *column_features;
-    /* Beta features: */
-    /* distribution levels */    float distribution_levels[100];
-    /* distribution */           int distribution[100];
 } Model;
 
 /*
@@ -113,21 +110,6 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
     Py_RETURN_NONE;
 }
 
-static PyObject *
-model_set_distribution_level(Model *self, PyObject *args, PyObject *kwargs) {
-    int i;
-    float level;
-
-    static char *kwlist[] = {"i", "level", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "if", kwlist, &i, &level)) {
-        return NULL;
-    }
-
-    self->distribution_levels[i] = level;
-
-    Py_RETURN_NONE;
-}
-
 /*
   Model methods.
 --------------------------------------------------------------------------------
@@ -212,8 +194,6 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    memset(self->distribution, 0, sizeof(self->distribution));
-
     #pragma omp parallel for reduction(+:rmse)
     for (int i = start; i < stop; i++) {
         const int row = self->rows[i];
@@ -241,12 +221,6 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         min_error = fmin(min_error, abs_error);
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
-        // Distribution.
-        for (int j = 0; j < 100; j++) {
-            if (abs_error < self->distribution_levels[j]) {
-                self->distribution[j] += 1;
-            }
-        }
     }
     // Return error.
     rmse /= self->value_count;
@@ -299,16 +273,6 @@ model_get_column_feature(Model *self, PyObject *args, PyObject *kwargs) {
     return PyFloat_FromDouble(self->column_features[column * self->feature_count + j]);
 }
 
-static PyObject *
-model_get_distribution(Model *self, PyObject *args, PyObject *kwargs) {
-    int i;
-    static char *kwlist[] = {"i", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "i", kwlist, &i)) {
-        return NULL;
-    }
-    return PyLong_FromLong(self->distribution[i]);
-}
-
 /*
   Predicting.
 --------------------------------------------------------------------------------
@@ -347,8 +311,6 @@ static PyMethodDef model_methods[] = {
     {"get_row_feature", (PyCFunction)model_get_row_feature, METH_VARARGS | METH_KEYWORDS, "Gets learned row feature."},
     {"get_column_feature", (PyCFunction)model_get_column_feature, METH_VARARGS | METH_KEYWORDS, "Gets learned column feature."},
     {"predict", (PyCFunction)model_predict, METH_VARARGS | METH_KEYWORDS, "Predicts rating."},
-    {"set_distribution_level", (PyCFunction)model_set_distribution_level, METH_VARARGS | METH_KEYWORDS, "Sets distribution level."},
-    {"get_distribution", (PyCFunction)model_get_distribution, METH_VARARGS | METH_KEYWORDS, "Gets distribution item."},
     {NULL}
 };
 
