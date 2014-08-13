@@ -11,16 +11,16 @@ typedef struct {
     /* value count */            int value_count;
     /* row indexes */            int *rows;
     /* column indexes */         int *columns;
-    /* rating values */          double *values;
-    /* base predictor */         double base;
-    /* row base predictors */    double *row_bases;
-    /* column base predictors */ double *column_bases;
+    /* rating values */          float *values;
+    /* base predictor */         float base;
+    /* row base predictors */    float *row_bases;
+    /* column base predictors */ float *column_bases;
     /* feature count*/           int feature_count;
-    /* regularization */         double lambda;
-    /* learned features */       double *row_features;
-    /* learned features */       double *column_features;
+    /* regularization */         float lambda;
+    /* learned features */       float *row_features;
+    /* learned features */       float *column_features;
     /* Beta features: */
-    /* distribution levels */    double distribution_levels[100];
+    /* distribution levels */    float distribution_levels[100];
     /* distribution */           int distribution[100];
 } Model;
 
@@ -59,7 +59,7 @@ static int
 model_init(Model *self, PyObject *args, PyObject *kwargs) {
     static char *kwlist[] = {"row_count", "column_count", "value_count", "feature_count", "_lambda", NULL};
     if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiiid", kwlist, 
+        args, kwargs, "iiiif", kwlist, 
         &self->row_count, &self->column_count, &self->value_count, &self->feature_count, &self->lambda)) {
         return -1;
     }
@@ -67,11 +67,11 @@ model_init(Model *self, PyObject *args, PyObject *kwargs) {
     if (
         !alloc_wrapper(self->value_count * sizeof(int), (void**)&self->rows) ||
         !alloc_wrapper(self->value_count * sizeof(int), (void**)&self->columns) ||
-        !alloc_wrapper(self->value_count * sizeof(double), (void**)&self->values) ||
-        !alloc_wrapper(self->row_count * sizeof(double), (void**)&self->row_bases) ||
-        !alloc_wrapper(self->column_count * sizeof(double), (void**)&self->column_bases) ||
-        !alloc_wrapper(self->row_count * self->feature_count * sizeof(double), (void**)&self->row_features) ||
-        !alloc_wrapper(self->column_count * self->feature_count * sizeof(double), (void**)&self->column_features)
+        !alloc_wrapper(self->value_count * sizeof(float), (void**)&self->values) ||
+        !alloc_wrapper(self->row_count * sizeof(float), (void**)&self->row_bases) ||
+        !alloc_wrapper(self->column_count * sizeof(float), (void**)&self->column_bases) ||
+        !alloc_wrapper(self->row_count * self->feature_count * sizeof(float), (void**)&self->row_features) ||
+        !alloc_wrapper(self->column_count * self->feature_count * sizeof(float), (void**)&self->column_features)
     ) {
         return -1;
     }
@@ -99,10 +99,10 @@ static PyObject *
 model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
     int index;
     long row, column;
-    double value;
+    float value;
 
     static char *kwlist[] = {"index", "row", "column", "value", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iiid", kwlist, &index, &row, &column, &value)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iiif", kwlist, &index, &row, &column, &value)) {
         return NULL;
     }
 
@@ -116,10 +116,10 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
 static PyObject *
 model_set_distribution_level(Model *self, PyObject *args, PyObject *kwargs) {
     int i;
-    double level;
+    float level;
 
     static char *kwlist[] = {"i", "level", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "id", kwlist, &i, &level)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "if", kwlist, &i, &level)) {
         return NULL;
     }
 
@@ -133,17 +133,17 @@ model_set_distribution_level(Model *self, PyObject *args, PyObject *kwargs) {
 --------------------------------------------------------------------------------
  */
 
-double
-rand_wrapper(double randomness) {
+float
+rand_wrapper(float randomness) {
     return randomness * (1.0 * rand() / RAND_MAX - 0.5);
 }
 
 static PyObject *
 model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
-    double randomness;
+    float randomness;
 
     static char *kwlist[] = {"randomness", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "d", kwlist, &randomness)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "f", kwlist, &randomness)) {
         return NULL;
     }
     // Randomize base.
@@ -183,14 +183,14 @@ model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
         const int j = rand() % (i + 1);
         SWAP(self->rows, i, j, int);
         SWAP(self->columns, i, j, int);
-        SWAP(self->values, i, j, double);
+        SWAP(self->values, i, j, float);
     }
 
     Py_RETURN_NONE;
 }
 
-double features_dot(Model *self, const int row, const int column) {
-    double dot = 0.0;
+float features_dot(Model *self, const int row, const int column) {
+    float dot = 0.0;
 
     for (int i = 0; i < self->feature_count; i++) {
         dot += 
@@ -204,11 +204,11 @@ double features_dot(Model *self, const int row, const int column) {
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     int start, stop;
-    double alpha;
-    double rmse = 0.0, min_error = INFINITY, average_error = 0.0, max_error = 0.0;
+    float alpha;
+    float rmse = 0.0, min_error = INFINITY, average_error = 0.0, max_error = 0.0;
 
     static char *kwlist[] = {"start", "stop", "alpha", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iid", kwlist, &start, &stop, &alpha)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iif", kwlist, &start, &stop, &alpha)) {
         return NULL;
     }
 
@@ -219,7 +219,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         const int row = self->rows[i];
         const int column = self->columns[i];
         // Update error.
-        const double error = self->values[i] - (
+        const float error = self->values[i] - (
             self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
         rmse += error * error;
         // Update base predictors.
@@ -230,14 +230,14 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         for (int j = 0; j < self->feature_count; j++) {
             int row_offset = row * self->feature_count + j;
             int column_offset = column * self->feature_count + j;
-            double row_feature = self->row_features[row_offset];
+            float row_feature = self->row_features[row_offset];
             self->row_features[row_offset] += alpha * (
                 error * self->column_features[column_offset] - self->lambda * self->row_features[row_offset]);
             self->column_features[column_offset] += alpha * (
                 error * row_feature - self->lambda * self->column_features[column_offset]);
         }
         // Statistics.
-        const double abs_error = fabs(error);
+        const float abs_error = fabs(error);
         min_error = fmin(min_error, abs_error);
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
@@ -251,7 +251,7 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
     // Return error.
     rmse /= self->value_count;
     average_error /= self->value_count;
-    return Py_BuildValue("(dddd)", rmse, min_error, average_error, max_error);
+    return Py_BuildValue("(ffff)", rmse, min_error, average_error, max_error);
 }
 
 /*
@@ -333,7 +333,7 @@ static PyMemberDef model_members[] = {
     {"row_count", T_INT, offsetof(Model, row_count), 0, "Row count."},
     {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
     {"value_count", T_INT, offsetof(Model, value_count), 0, "Value count."},
-    {"base", T_DOUBLE, offsetof(Model, base), 0, "Learned base predictor."},
+    {"base", T_FLOAT, offsetof(Model, base), 0, "Learned base predictor."},
     {NULL}
 };
 
