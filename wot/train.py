@@ -16,8 +16,8 @@ import trainer
 
 @click.command(help="Train model.")
 @click.argument("wotstats", type=click.File("rb"))
-@click.option("--min-battles", default=10, help="Minimum tank battles.", show_default=True, type=int)
-@click.option("--feature-count", default=4, help="Feature count.", show_default=True, type=int)
+@click.option("--min-battles", default=50, help="Minimum tank battles.", show_default=True, type=int)
+@click.option("--feature-count", default=16, help="Feature count.", show_default=True, type=int)
 @click.option("--lambda", default=0.0, help="Regularization parameter.", show_default=True, type=float)
 @click.option("--memory-limit", default=6144, help="Maximum RAM in megabytes.", show_default=True, type=int)
 def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
