@@ -36,6 +36,15 @@ def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     logging.info("Initializing model.")
     model = trainer.Model(row_count, column_count, value_count, feature_count, kwargs["lambda"])
     logging.info("Reading model.")
+    value_count = read_model(wotstats, min_battles, model)
+    logging.info("Value count: %d.", value_count)
+
+    logging.info("Preparing model.")
+    model.prepare(0.5)
+    logging.info("Initial shuffle.")
+    model.shuffle(0, value_count)
+    learning_set_size = value_count * 70 // 100
+    logging.info("Learning set size: %d.", learning_set_size)
 
 
 def read_magic(wotstats):
@@ -64,21 +73,39 @@ def read_column(wotstats, min_battles):
         raise ValueError(magic)
 
     account_id, tank_count = download.ACCOUNT.unpack(wotstats.read(download.ACCOUNT.size))
-    for i in tank_count:
+    for _ in range(tank_count):
         row, battles, wins = download.TANK.unpack(wotstats.read(download.TANK.size))
         if battles >= min_battles:
             yield row, battles, wins
 
 
-def read_model(wotstats, model):
-    column = 0
-    for i in range(column_count):
-        values = list(read_column(wotstats, min_battles))
-        if not values:
-            continue
-        for row, battles, wins in values:
-            pass
-        column += 1
+def read_model(wotstats, min_battles, model):
+    "Reads model values from wotstats."
+
+    column, value_count = 0, 0
+    half_percent = model.column_count // 200
+    # Iterate over columns.
+    try:
+        for i in range(model.column_count):
+            # Progress.
+            if i % half_percent == 0:
+                logging.info(
+                    "%4.1f%% | read: %d | columns: %d | values: %d",
+                    100.0 * i / model.column_count, i, column, value_count,
+                )
+            # Read column.
+            values = list(read_column(wotstats, min_battles))
+            if not values:
+                continue
+            # Set column values.
+            for row, battles, wins in values:
+                model.set_value(value_count, row, column, 100.0 * wins / battles)
+                value_count += 1
+            column += 1
+    except KeyboardInterrupt:
+        pass
+    # Return actual value count.
+    return value_count
 
 
 if __name__ == "__main__":
