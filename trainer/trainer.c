@@ -186,11 +186,12 @@ float features_dot(Model *self, const int row, const int column) {
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     int start, stop;
-    float alpha;
+    float alpha, metric;
     float rmse = 0.0, average_error = 0.0, max_error = 0.0;
+    int under_metric = 0;
 
-    static char *kwlist[] = {"start", "stop", "alpha", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iif", kwlist, &start, &stop, &alpha)) {
+    static char *kwlist[] = {"start", "stop", "alpha", "metric", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iiff", kwlist, &start, &stop, &alpha, &metric)) {
         return NULL;
     }
 
@@ -220,11 +221,14 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         const float abs_error = fabs(error);
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
+        if (abs_error < metric) {
+            under_metric += 1;
+        }
     }
     // Return error.
     rmse /= self->value_count;
     average_error /= self->value_count;
-    return Py_BuildValue("(fff)", rmse, average_error, max_error);
+    return Py_BuildValue("(fffi)", rmse, average_error, max_error, under_metric);
 }
 
 /*
