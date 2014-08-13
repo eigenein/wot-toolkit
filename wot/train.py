@@ -6,6 +6,7 @@ import json
 import logging
 import resource
 import sys
+import time
 
 import click
 
@@ -54,9 +55,16 @@ def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     logging.info("Starting gradient descent.")
     gradient_descent(model, learning_set_size, value_count, initial_rmse)
 
+    _, min_error, avg_error, max_error = model.step(learning_set_size, value_count, 0.0)
+    logging.info("Test set: min - %.9f, avg - %.9f, max - %.9f.", min_error, avg_error, max_error)
+
 
 def gradient_descent(model, learning_set_size, value_count, initial_rmse):
-    alpha, previous_rmse = 0.001, initial_rmse
+    "Performs gradient descent on model."
+
+    alpha = 0.001
+    previous_rmse = initial_rmse
+
     try:
         for iteration in itertools.count(1):
             model.shuffle(0, learning_set_size)
@@ -71,8 +79,7 @@ def gradient_descent(model, learning_set_size, value_count, initial_rmse):
             alpha *= 1.05 if rmse < previous_rmse else 0.5
             previous_rmse = rmse
     except KeyboardInterrupt:
-        _, min_error, avg_error, max_error = model.step(learning_set_size, value_count, 0.0)
-        logging.info("Test set: min - %.9f, avg - %.9f, max - %.9f.", min_error, avg_error, max_error)
+        pass
 
 
 def read_magic(wotstats):
@@ -112,14 +119,17 @@ def read_model(wotstats, min_battles, model):
 
     column, value_count = 0, 0
     half_percent = model.column_count // 200
+    start_time = time.time()
     # Iterate over columns.
     try:
         for i in range(model.column_count):
             # Progress.
-            if i % half_percent == 0:
+            if i and (i % half_percent == 0):
+                percents = i / model.column_count
+                eta = int((time.time() - start_time) / percents)
                 logging.info(
-                    "%4.1f%% | read: %d | columns: %d | values: %d",
-                    100.0 * i / model.column_count, i, column, value_count,
+                    "%4.1f%% | eta: %dm%ds | read: %d | columns: %d | values: %d",
+                    100.0 * percents, eta // 60, eta % 60, i, column, value_count,
                 )
             # Read column.
             values = list(read_column(wotstats, min_battles))
