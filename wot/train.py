@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import io
 import itertools
 import json
 import logging
@@ -24,6 +25,8 @@ def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=sys.stderr)
     resource.setrlimit(resource.RLIMIT_AS, (memory_limit * 1048576, -1))
     logging.info("Memory limit: %d MiB.", memory_limit)
+
+    wotstats = io.BufferedReader(wotstats)  # enable buffering
 
     magic = read_magic(wotstats)
     logging.info("Magic: %s.", magic)
