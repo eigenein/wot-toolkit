@@ -15,7 +15,7 @@ import download
 import trainer
 
 
-METRIC = 10.0
+METRIC = 10.0  # maximum acceptable error
 
 
 @click.command(help="Train model.")
