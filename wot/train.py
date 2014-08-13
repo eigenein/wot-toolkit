@@ -17,7 +17,7 @@ import trainer
 @click.option("--min-battles", default=10, help="Minimum tank battles.", show_default=True, type=int)
 @click.option("--feature-count", default=4, help="Feature count.", show_default=True, type=int)
 @click.option("--lambda", default=0.0, help="Regularization parameter.", show_default=True, type=float)
-@click.option("--memory-limit", default=4096, help="Maximum RAM in megabytes.", show_default=True, type=int)
+@click.option("--memory-limit", default=6144, help="Maximum RAM in megabytes.", show_default=True, type=int)
 def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=sys.stderr)
     resource.setrlimit(resource.RLIMIT_AS, (memory_limit * 1048576, -1))
