@@ -187,7 +187,7 @@ static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     int start, stop;
     float alpha;
-    float rmse = 0.0, min_error = INFINITY, average_error = 0.0, max_error = 0.0;
+    float rmse = 0.0, average_error = 0.0, max_error = 0.0;
 
     static char *kwlist[] = {"start", "stop", "alpha", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iif", kwlist, &start, &stop, &alpha)) {
@@ -218,14 +218,13 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         }
         // Statistics.
         const float abs_error = fabs(error);
-        min_error = fmin(min_error, abs_error);
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
     }
     // Return error.
     rmse /= self->value_count;
     average_error /= self->value_count;
-    return Py_BuildValue("(ffff)", rmse, min_error, average_error, max_error);
+    return Py_BuildValue("(fff)", rmse, average_error, max_error);
 }
 
 /*
