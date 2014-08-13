@@ -29,11 +29,11 @@ ACCOUNT = struct.Struct("<IH")  # account_id, tank count
 
 
 @click.command(help="Download account database.")
-@click.option("--application-id", default="demo", help="application ID", show_default=True)
-@click.option("--threads", default=8, help="thread count", show_default=True, type=int)
-@click.option("--min-battles", default=10, help="minimum tank battles", show_default=True, type=int)
-@click.option("-o", "--output", help="output file", required=True, type=click.File("wb"))
-@click.option("--log", default=sys.stderr, help="log file", type=click.File("wt"))
+@click.option("--application-id", default="demo", help="Application ID.", show_default=True)
+@click.option("--threads", default=8, help="Thread count.", show_default=True, type=int)
+@click.option("--min-battles", default=10, help="Minimum tank battles.", show_default=True, type=int)
+@click.option("-o", "--output", help="Output file.", required=True, type=click.File("wb"))
+@click.option("--log", default=sys.stderr, help="Log file.", type=click.File("wt"))
 def main(application_id, threads, min_battles, output, log):
     # Initialize logging.
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=log)
