@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import itertools
 import json
 import logging
 import resource
@@ -45,6 +46,33 @@ def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     model.shuffle(0, value_count)
     learning_set_size = value_count * 70 // 100
     logging.info("Learning set size: %d.", learning_set_size)
+
+    logging.info("Computing initial RMSE.")
+    initial_rmse, _, _, _ = model.step(0, learning_set_size, 0.0)
+    logging.info("Initial RMSE: %.6f.", initial_rmse)
+
+    logging.info("Starting gradient descent.")
+    gradient_descent(model, learning_set_size, value_count, initial_rmse)
+
+
+def gradient_descent(model, learning_set_size, value_count, initial_rmse):
+    alpha, previous_rmse = 0.001, initial_rmse
+    try:
+        for iteration in itertools.count(1):
+            model.shuffle(0, learning_set_size)
+            rmse, _, avg_error, max_error = model.step(0, learning_set_size, alpha)
+            if alpha < 1e-08:
+                logging.warning("Learning rate is too small. Stopping.")
+                break
+            logging.info(
+                "#%d | a: %.9f | rmse %.9f | d_rmse: %.9f | avg: %.9f | max: %.9f",
+                iteration, alpha, rmse, rmse - previous_rmse, avg_error, max_error,
+            )
+            alpha *= 1.05 if rmse < previous_rmse else 0.5
+            previous_rmse = rmse
+    except KeyboardInterrupt:
+        _, min_error, avg_error, max_error = model.step(learning_set_size, value_count, 0.0)
+        logging.info("Test set: min - %.9f, avg - %.9f, max - %.9f.", min_error, avg_error, max_error)
 
 
 def read_magic(wotstats):

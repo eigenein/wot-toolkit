@@ -39,7 +39,7 @@ def main(args):
     logging.info("Learning set size: %d.", learning_set_size)
 
     logging.info("Computing initial RMSE.")
-    initial_rmse, _, _, _ = model.step(0, model.value_count, 0.0)
+    initial_rmse, _, _, _ = model.step(0, learning_set_size, 0.0)
     logging.info("Initial RMSE: %.6f.", initial_rmse)
 
     logging.info("Gradient descent.")
