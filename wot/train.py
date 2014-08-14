@@ -134,11 +134,11 @@ def read_model(wotstats, min_battles, model):
         for i in range(model.column_count):
             # Progress.
             if i and (i % half_percent == 0):
-                percents = i / model.column_count
-                eta = int((time.time() - start_time) / percents)
+                progress = i / model.column_count
+                eta = int((1.0 - progress) * (time.time() - start_time) / progress)
                 logging.info(
                     "%4.1f%% | eta: %dm%ds | read: %d | columns: %d | values: %d",
-                    100.0 * percents, eta // 60, eta % 60, i, column, value_count,
+                    100.0 * progress, eta // 60, eta % 60, i, column, value_count,
                 )
             # Read column.
             values = list(read_column(wotstats, min_battles))
