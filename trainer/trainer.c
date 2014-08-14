@@ -131,22 +131,18 @@ model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
     // Randomize base.
     self->base = rand_wrapper(randomness);
     // Randomize row bases.
-    #pragma omp parallel for
     for (int i = 0; i < self->row_count; i++) {
         self->row_bases[i] = rand_wrapper(randomness);
     }
     // Randomize column bases.
-    #pragma omp parallel for
     for (int i = 0; i < self->column_count; i++) {
         self->column_bases[i] = rand_wrapper(randomness);
     }
     // Randomize row features.
-    #pragma omp parallel for
     for (int i = 0; i < self->row_count * self->feature_count; i++) {
         self->row_features[i] = rand_wrapper(randomness);
     }
     // Randomize column features.
-    #pragma omp parallel for
     for (int i = 0; i < self->column_count * self->feature_count; i++) {
         self->column_features[i] = rand_wrapper(randomness);
     }
