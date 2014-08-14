@@ -15,7 +15,7 @@ import download
 import trainer
 
 
-METRIC = 10.0  # maximum acceptable error
+THRESHOLD = 50.0
 
 
 @click.command(help="Train model.")
@@ -55,16 +55,16 @@ def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     logging.info("Learning set size: %d.", learning_set_size)
 
     logging.info("Computing initial RMSE.")
-    initial_rmse, _, _, _ = model.step(0, learning_set_size, 0.0, METRIC)
+    initial_rmse, _, _, _ = model.step(0, learning_set_size, 0.0, THRESHOLD)
     logging.info("Initial RMSE: %.6f.", initial_rmse)
 
     logging.info("Starting gradient descent.")
     gradient_descent(model, learning_set_size, initial_rmse)
 
-    _, avg_error, max_error, under_metric = model.step(learning_set_size, value_count, 0.0, METRIC)
+    _, avg_error, max_error, precision = model.step(learning_set_size, value_count, 0.0, THRESHOLD)
     logging.info(
-        "Test set: average error - %.9f, maximum error - %.9f, under metric: %.1f%%.",
-        avg_error, max_error, 100.0 * under_metric / (value_count - learning_set_size),
+        "Test set: average error - %.9f, maximum error - %.9f, precision: %.1f%%.",
+        avg_error, max_error, 100.0 * precision,
     )
 
 
@@ -77,13 +77,13 @@ def gradient_descent(model, learning_set_size, initial_rmse):
     try:
         for iteration in itertools.count(1):
             model.shuffle(0, learning_set_size)
-            rmse, avg_error, max_error, under_metric = model.step(0, learning_set_size, alpha, METRIC)
+            rmse, avg_error, max_error, precision = model.step(0, learning_set_size, alpha, THRESHOLD)
             if alpha < 1e-08:
                 logging.warning("Learning rate is too small. Stopping.")
                 break
             logging.info(
-                "#%d | a: %.9f | rmse %.9f | d_rmse: %.9f | avg: %.9f | max: %.9f | metric: %.1f%%",
-                iteration, alpha, rmse, rmse - previous_rmse, avg_error, max_error, 100.0 * under_metric / learning_set_size,
+                "#%d | a: %.9f | rmse %.9f | d_rmse: %.9f | avg: %.9f | max: %.9f | precision: %.1f%%",
+                iteration, alpha, rmse, rmse - previous_rmse, avg_error, max_error, 100.0 * precision,
             )
             alpha *= 1.05 if rmse < previous_rmse else 0.5
             previous_rmse = rmse

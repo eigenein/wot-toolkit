@@ -186,22 +186,21 @@ float features_dot(Model *self, const int row, const int column) {
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     int start, stop;
-    float alpha, metric;
-    float rmse = 0.0, average_error = 0.0, max_error = 0.0;
-    int under_metric = 0;
+    float alpha, threshold;
+    float rmse = 0.0, average_error = 0.0, max_error = 0.0, precision = 0.0;
 
-    static char *kwlist[] = {"start", "stop", "alpha", "metric", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iiff", kwlist, &start, &stop, &alpha, &metric)) {
+    static char *kwlist[] = {"start", "stop", "alpha", "threshold", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iiff", kwlist, &start, &stop, &alpha, &threshold)) {
         return NULL;
     }
 
-    #pragma omp parallel for reduction(+:rmse)
+    #pragma omp parallel for reduction(+:rmse) reduction(+:precision)
     for (int i = start; i < stop; i++) {
         const int row = self->rows[i];
         const int column = self->columns[i];
         // Update error.
-        const float error = self->values[i] - (
-            self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column));
+        const float prediction = self->base + self->row_bases[row] + self->column_bases[column] + features_dot(self, row, column);
+        const float error = self->values[i] - prediction;
         rmse += error * error;
         // Update base predictors.
         self->base += alpha * error;
@@ -221,14 +220,14 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         const float abs_error = fabs(error);
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
-        if (abs_error < metric) {
-            under_metric += 1;
-        }
+        precision += (float)((prediction < threshold) == (self->values[i] < threshold));
     }
     // Return error.
-    rmse /= self->value_count;
-    average_error /= self->value_count;
-    return Py_BuildValue("(fffi)", rmse, average_error, max_error, under_metric);
+    const int value_count = stop - start;
+    rmse /= value_count;
+    average_error /= value_count;
+    precision /= value_count;
+    return Py_BuildValue("(ffff)", rmse, average_error, max_error, precision);
 }
 
 /*
