@@ -59,7 +59,7 @@ def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     logging.info("Initial RMSE: %.6f.", initial_rmse)
 
     logging.info("Starting gradient descent.")
-    gradient_descent(model, learning_set_size, initial_rmse)
+    gradient_descent(model, feature_count, learning_set_size, initial_rmse)
 
     _, avg_error, max_error, precision = model.step(learning_set_size, value_count, 0.0, THRESHOLD)
     logging.info(
@@ -68,7 +68,7 @@ def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     )
 
 
-def gradient_descent(model, learning_set_size, initial_rmse):
+def gradient_descent(model, feature_count, learning_set_size, initial_rmse):
     "Performs gradient descent on model."
 
     alpha = 0.001
@@ -76,7 +76,9 @@ def gradient_descent(model, learning_set_size, initial_rmse):
 
     try:
         for iteration in itertools.count(1):
-            model.shuffle(0, learning_set_size)
+            if iteration % feature_count == 0:
+                logging.info("Shuffle!")
+                model.shuffle(0, learning_set_size)
             rmse, avg_error, max_error, precision = model.step(0, learning_set_size, alpha, THRESHOLD)
             if alpha < 1e-08:
                 logging.warning("Learning rate is too small. Stopping.")
