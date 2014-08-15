@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-import argparse
 import concurrent.futures
 import itertools
 import json
@@ -42,7 +41,6 @@ def main(application_id, threads, min_battles, output, log):
     # Download encyclopedia.
     encyclopedia = download_encyclopedia(application_id)
     write_json(output, encyclopedia)
-    row_count = len(encyclopedia)
     # Download database.
     column_count, value_count = download_database(application_id, max(threads, 1), min_battles, encyclopedia, output)
     # Seek to the beginning and update header.
