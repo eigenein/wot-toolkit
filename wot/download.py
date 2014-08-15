@@ -16,8 +16,6 @@ import click
 import requests
 
 
-THREAD_COUNT = 8
-
 FILE_MAGIC = b"WOTSTATS"
 ACCOUNT_MAGIC = b"$$";
 
