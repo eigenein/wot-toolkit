@@ -85,7 +85,7 @@ def gradient_descent(model, learning_set_size, initial_rmse):
                 "#%d | a: %.9f | rmse %.9f | d_rmse: %.9f | avg: %.9f | max: %.9f | precision: %.1f%%",
                 iteration, alpha, rmse, rmse - previous_rmse, avg_error, max_error, 100.0 * precision,
             )
-            alpha *= 1.05 if rmse < previous_rmse else 0.5
+            alpha *= 1.10 if rmse < previous_rmse else 0.5
             previous_rmse = rmse
     except KeyboardInterrupt:
         pass
