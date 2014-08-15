@@ -33,7 +33,7 @@ model_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
         self->row_count = self->column_count = self->value_count = 0;
         self->rows = self->columns = NULL;
         self->values = NULL;
-        self->base = 0.0;
+        self->base = 0.0f;
         self->row_bases = self->column_bases = NULL;
         self->feature_count = 0;
         self->row_features = self->column_features = NULL;
@@ -117,7 +117,7 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
 
 float
 rand_wrapper(float randomness) {
-    return randomness * (1.0 * rand() / RAND_MAX - 0.5);
+    return randomness * (1.0f * rand() / RAND_MAX - 0.5f);
 }
 
 static PyObject *
@@ -172,7 +172,7 @@ model_shuffle(Model *self, PyObject *args, PyObject *kwargs) {
 }
 
 float features_dot(Model *self, const int row, const int column) {
-    float dot = 0.0;
+    float dot = 0.0f;
 
     for (int i = 0; i < self->feature_count; i++) {
         dot += 
@@ -187,14 +187,16 @@ static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
     int start, stop;
     float alpha, threshold;
-    float rmse = 0.0, average_error = 0.0, max_error = 0.0, precision = 0.0;
+
+    float rmse = 0.0f, average_error = 0.0f, max_error = 0.0f;
+    int true_predictions = 0;
 
     static char *kwlist[] = {"start", "stop", "alpha", "threshold", NULL};
     if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iiff", kwlist, &start, &stop, &alpha, &threshold)) {
         return NULL;
     }
 
-    #pragma omp parallel for reduction(+:rmse) reduction(+:precision)
+    #pragma omp parallel for reduction(+:rmse) reduction(+:true_predictions)
     for (int i = start; i < stop; i++) {
         const int row = self->rows[i];
         const int column = self->columns[i];
@@ -208,9 +210,9 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         self->column_bases[column] += alpha * (error - self->lambda * self->column_bases[column]);
         // Update features.
         for (int j = 0; j < self->feature_count; j++) {
-            int row_offset = row * self->feature_count + j;
-            int column_offset = column * self->feature_count + j;
-            float row_feature = self->row_features[row_offset];
+            const int row_offset = row * self->feature_count + j;
+            const int column_offset = column * self->feature_count + j;
+            const float row_feature = self->row_features[row_offset];
             self->row_features[row_offset] += alpha * (
                 error * self->column_features[column_offset] - self->lambda * self->row_features[row_offset]);
             self->column_features[column_offset] += alpha * (
@@ -220,13 +222,13 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
         const float abs_error = fabs(error);
         average_error += abs_error;
         max_error = fmax(max_error, abs_error);
-        precision += (float)((prediction < threshold) == (self->values[i] < threshold));
+        true_predictions += ((prediction < threshold) == (self->values[i] < threshold)) ? 1 : 0;
     }
     // Return error.
     const int value_count = stop - start;
     rmse /= value_count;
     average_error /= value_count;
-    precision /= value_count;
+    const float precision = (float)true_predictions / value_count;
     return Py_BuildValue("(ffff)", rmse, average_error, max_error, precision);
 }
 

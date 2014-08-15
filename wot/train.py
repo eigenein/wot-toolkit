@@ -137,7 +137,7 @@ def read_model(wotstats, min_battles, model):
                 progress = i / model.column_count
                 eta = int((1.0 - progress) * (time.time() - start_time) / progress)
                 logging.info(
-                    "%4.1f%% | eta: %dm%ds | read: %d | columns: %d | values: %d",
+                    "%4.1f%% | eta: %dm%02ds | read: %d | columns: %d | values: %d",
                     100.0 * progress, eta // 60, eta % 60, i, column, value_count,
                 )
             # Read column.
