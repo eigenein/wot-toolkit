@@ -66,3 +66,11 @@ def read_account(fp):
     assert magic == Magic.ACCOUNT
     items = [Struct.item.unpack(fp.read(Struct.item.size)) for _ in range(item_count)]
     return account_id, items
+
+
+def read(fp):
+    "High-level wotstats file reading."
+    account_count, item_count = read_header(fp)
+    encyclopedia = read_json(fp)
+    accounts = (read_account(fp) for _ in range(account_count))
+    return account_count, item_count, encyclopedia, accounts
