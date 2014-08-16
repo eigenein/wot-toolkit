@@ -9,8 +9,8 @@ import struct
 
 class Struct:
     "Compiled structs."
-    file_header = struct.Struct("<QII")  # (magic, column_count, value_count)
-    json_length = struct.Struct("<I")
+    file_header = struct.Struct("<QII")  # (magic, account_count, item_count)
+    json_header = struct.Struct("<II")  # (magic, length)
     account_header = struct.Struct("<IIH")  # (magic, account_id, item_count)
     item = struct.Struct("<HII")  # (row, battles, wins)
 
@@ -19,27 +19,50 @@ class Magic:
     "Magic numbers."
     FILE_HEADER = 0x5354415453544f57  # WOTSTATS
     ACCOUNT = 0x3a434341  # ACC:
+    JSON = 0x4e4f534a  # JSON
 
 
-def write_header(output, column_count, value_count):
+def write_header(fp, account_count, item_count):
     "Writes database header."
-    output.write(Struct.file_header.pack(Magic.FILE_HEADER, column_count, value_count))
+    fp.write(Struct.file_header.pack(Magic.FILE_HEADER, account_count, item_count))
 
 
-def write_json(output, obj):
-    "Writes serialized object to output."
+def read_header(fp):
+    "Reads database header."
+    magic, account_count, item_count = Struct.file_header.unpack(fp.read(Struct.file_header.size))
+    assert magic == Magic.FILE_HEADER
+    return account_count, item_count
+
+
+def write_json(fp, obj):
+    "Writes serialized object."
     s = json.dumps(obj).encode("utf-8")
-    output.write(Struct.json_length.pack(len(s)))
-    output.write(s)
+    fp.write(Struct.json_header.pack(Magic.JSON, len(s)))
+    fp.write(s)
 
 
-def write_account(output, account_id, items):
-    "Writes account."
+def read_json(fp):
+    "Reads JSON object from database."
+    magic, length = Struct.json_header.unpack(fp.read(Struct.json_header.size))
+    assert magic == Magic.JSON
+    return fp.read(length).decode("utf-8")
+
+
+def write_account(fp, account_id, items):
+    "Writes account data."
     assert account_id
     assert items
 
     item_count = len(items)
-    output.write(Struct.account_header.pack(Magic.ACCOUNT, account_id, item_count))
+    fp.write(Struct.account_header.pack(Magic.ACCOUNT, account_id, item_count))
     for row, battles, wins in items:
-        output.write(Struct.item.pack(row, battles, wins))
+        fp.write(Struct.item.pack(row, battles, wins))
     return item_count
+
+
+def read_account(fp):
+    "Reads account data."
+    magic, account_id, item_count = Struct.account_header.unpack(fp.read(Struct.account_header.size))
+    assert magic == Magic.ACCOUNT
+    items = [Struct.item.unpack(fp.read(Struct.item.size)) for _ in range(item_count)]
+    return account_id, items
