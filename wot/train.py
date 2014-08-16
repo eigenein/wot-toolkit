@@ -11,8 +11,8 @@ import time
 
 import click
 
-import download
 import trainer
+import wotstats
 
 
 THRESHOLD = 50.0
@@ -21,11 +21,10 @@ THRESHOLD = 50.0
 @click.command(help="Train model.")
 @click.argument("wotstats", type=click.File("rb"))
 @click.option("--min-battles", default=50, help="Minimum tank battles.", show_default=True, type=int)
-@click.option("--max-battles", default=0, help="Maximum tank battles.", type=int)
 @click.option("--feature-count", default=16, help="Feature count.", show_default=True, type=int)
 @click.option("--lambda", default=0.0, help="Regularization parameter.", show_default=True, type=float)
 @click.option("--memory-limit", default=6144, help="Maximum RAM in megabytes.", show_default=True, type=int)
-def main(wotstats, min_battles, max_battles, feature_count, memory_limit, **kwargs):
+def main(wotstats, min_battles, feature_count, memory_limit, **kwargs):
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=sys.stderr)
     resource.setrlimit(resource.RLIMIT_AS, (memory_limit * 1048576, -1))
     logging.info("Memory limit: %d MiB.", memory_limit)
@@ -45,7 +44,7 @@ def main(wotstats, min_battles, max_battles, feature_count, memory_limit, **kwar
     logging.info("Initializing model.")
     model = trainer.Model(row_count, column_count, value_count, feature_count, kwargs["lambda"])
     logging.info("Reading model.")
-    value_count = read_model(wotstats, min_battles, max_battles, model)
+    value_count = read_model(wotstats, min_battles, model)
     logging.info("Value count: %d.", value_count)
 
     logging.info("Preparing model.")
@@ -112,7 +111,7 @@ def read_json(wotstats):
     return json.loads(wotstats.read(length).decode("utf-8"))
 
 
-def read_column(wotstats, min_battles, max_battles):
+def read_column(wotstats, min_battles):
     "Reads column from wotstats file."
 
     magic = wotstats.read(len(download.ACCOUNT_MAGIC))
@@ -122,11 +121,11 @@ def read_column(wotstats, min_battles, max_battles):
     account_id, tank_count = download.ACCOUNT.unpack(wotstats.read(download.ACCOUNT.size))
     for _ in range(tank_count):
         row, battles, wins = download.TANK.unpack(wotstats.read(download.TANK.size))
-        if battles >= min_battles and (not max_battles or battles <= max_battles):
+        if battles >= min_battles:
             yield row, battles, wins
 
 
-def read_model(wotstats, min_battles, max_battles, model):
+def read_model(wotstats, min_battles, model):
     "Reads model values from wotstats."
 
     column, value_count = 0, 0
@@ -144,7 +143,7 @@ def read_model(wotstats, min_battles, max_battles, model):
                     100.0 * progress, eta // 60, eta % 60, i, column, value_count,
                 )
             # Read column.
-            values = list(read_column(wotstats, min_battles, max_battles))
+            values = list(read_column(wotstats, min_battles))
             if not values:
                 continue
             # Set column values.
