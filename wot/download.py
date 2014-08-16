@@ -3,11 +3,9 @@
 
 import concurrent.futures
 import itertools
-import json
 import logging
 import operator
 import random
-import struct
 import sys
 import threading
 import time
@@ -15,14 +13,7 @@ import time
 import click
 import requests
 
-
-FILE_MAGIC = b"WOTSTATS"
-ACCOUNT_MAGIC = b"$$";
-
-LENGTH = struct.Struct("<I")
-FILE_HEADER = struct.Struct("<II")  # column_count, value_count
-TANK = struct.Struct("<HII")  # row, battles, wins
-ACCOUNT = struct.Struct("<IH")  # account_id, tank count
+import wotstats
 
 
 @click.command(help="Download account database.")
@@ -35,24 +26,17 @@ def main(application_id, threads, min_battles, output, log):
     # Initialize logging.
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=log)
     # Write empty header.
-    write_header(output, 0, 0)
+    wotstats.write_header(output, 0, 0)
     # Download encyclopedia.
     encyclopedia = download_encyclopedia(application_id)
-    write_json(output, encyclopedia)
+    wotstats.write_json(output, encyclopedia)
     # Download database.
     column_count, value_count = download_database(application_id, max(threads, 1), min_battles, encyclopedia, output)
     # Seek to the beginning and update header.
     output.seek(0)
-    write_header(output, column_count, value_count)
+    wotstats.write_header(output, column_count, value_count)
     # Finished.
     logging.info("Finished: %d columns, %d values.", column_count, value_count)
-
-
-def write_header(output, column_count, value_count):
-    "Writes database header."
-    logging.info("Writing header…")
-    output.write(FILE_MAGIC)
-    output.write(FILE_HEADER.pack(column_count, value_count))
 
 
 class Local(threading.local):
@@ -87,10 +71,13 @@ def download_database(application_id, thread_count, min_battles, encyclopedia, o
                     account_id = int(account_id)
                     if tanks is None:
                         continue
-                    tanks = [tank for tank in tanks if tank["statistics"]["battles"] >= min_battles]
+                    tanks = [
+                        (reverse_encyclopedia[tank["tank_id"]], tank["statistics"]["battles"], tank["statistics"]["wins"])
+                        for tank in tanks if tank["statistics"]["battles"] >= min_battles
+                    ]
                     if not tanks:
                         continue
-                    value_count += write_column(account_id, tanks, reverse_encyclopedia, output)
+                    value_count += wotstats.write_account(output, account_id, sorted(tanks))
                     column_count += 1
                 # Print statistics.
                 apd = 86400.0 * account_id / (time.time() - start_time)
@@ -129,20 +116,6 @@ def get_account_tanks(local, application_id, account_id):
     raise ValueError("all attempts failed")
 
 
-def write_column(account_id, tanks, reverse_encyclopedia, output):
-    "Writes account column."
-    output.write(ACCOUNT_MAGIC)
-    output.write(ACCOUNT.pack(account_id, len(tanks)))
-    tanks = sorted(tanks, key=operator.itemgetter("tank_id"))
-    for tank in tanks:
-        output.write(TANK.pack(
-            reverse_encyclopedia[tank["tank_id"]],
-            tank["statistics"]["battles"],
-            tank["statistics"]["wins"],
-        ))
-    return len(tanks)
-
-
 def download_encyclopedia(application_id):
     "Downloads encyclopedia."
     logging.info("Downloading encyclopedia…")
@@ -163,13 +136,6 @@ def get_response(response):
     if obj["status"] == "error":
         raise ValueError("{0[code]} {0[message]}".format(obj["error"]))
     return obj
-
-
-def write_json(output, obj):
-    "Writes serialized object to output."
-    s = json.dumps(obj)
-    output.write(LENGTH.pack(len(s)))
-    output.write(s.encode("utf-8"))
 
 
 if __name__ == "__main__":
