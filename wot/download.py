@@ -67,7 +67,8 @@ def download_database(application_id, thread_count, min_battles, encyclopedia, o
             for future in futures:
                 result = future.result()
                 # Iterate over accounts in result.
-                for account_id, tanks in result["data"].items():
+                items = sorted((int(account_id), tanks) for account_id, tanks in result["data"].items())
+                for account_id, tanks in items:
                     account_id = int(account_id)
                     if tanks is None:
                         continue
