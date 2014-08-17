@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import sys; sys.dont_write_bytecode = True
+
 import concurrent.futures
 import itertools
 import logging
 import operator
 import random
-import sys
 import threading
 import time
 
