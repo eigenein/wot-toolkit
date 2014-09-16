@@ -45,7 +45,7 @@ def read_json(fp):
     "Reads JSON object from database."
     magic, length = Struct.json_header.unpack(fp.read(Struct.json_header.size))
     assert magic == Magic.JSON
-    return fp.read(length).decode("utf-8")
+    return json.loads(fp.read(length).decode("utf-8"))
 
 
 def write_account(fp, account_id, items):
@@ -71,6 +71,6 @@ def read_account(fp):
 def read(fp):
     "High-level wotstats file reading."
     account_count, item_count = read_header(fp)
-    encyclopedia = read_json(fp)
+    encyclopedia = list(map(tuple, read_json(fp)))
     accounts = (read_account(fp) for _ in range(account_count))
     return account_count, item_count, encyclopedia, accounts
