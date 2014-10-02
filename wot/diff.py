@@ -42,9 +42,10 @@ def main(file1, file2, output):
 
     logging.info("Comparing files…")
     try:
-        statistics, item_count = collections.Counter(), 0
-        for account_count, (account_id, items) in enumerate(compare_files(accounts1, accounts2, statistics), start=1):
+        statistics, account_count, item_count = collections.Counter(), 0, 0
+        for _, (account_id, items) in enumerate(compare_files(accounts1, accounts2, statistics), start=1):
             wotstats.write_account(output, account_id, items)
+            account_count += 1
             item_count += len(items)
     finally:
         output.seek(0)
