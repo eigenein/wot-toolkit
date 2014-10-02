@@ -44,7 +44,7 @@ def write_json(fp, obj):
 def read_json(fp):
     "Reads JSON object from database."
     magic, length = Struct.json_header.unpack(fp.read(Struct.json_header.size))
-    assert magic == Magic.JSON
+    assert magic == Magic.JSON, hex(magic)
     return json.loads(fp.read(length).decode("utf-8"))
 
 

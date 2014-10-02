@@ -35,6 +35,7 @@ def main(file1, file2, output):
         raise click.ClickException("encyclopedias differ")
 
     wotstats.write_header(output, 0, 0)
+    wotstats.write_json(output, encyclopedia2)
 
     logging.info("File 1: %d accounts, %d items.", account_count1, item_count1)
     logging.info("File 2: %d accounts, %d items.", account_count2, item_count2)
