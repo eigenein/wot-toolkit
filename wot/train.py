@@ -19,11 +19,11 @@ THRESHOLD = 50.0
 
 
 @click.command(help="Train model.")
-@click.argument("database", type=click.File("rb"))
-@click.option("--min-battles", default=50, help="Minimum tank battles.", show_default=True, type=int)
-@click.option("--feature-count", default=16, help="Feature count.", show_default=True, type=int)
-@click.option("--lambda", default=0.0, help="Regularization parameter.", show_default=True, type=float)
-@click.option("--memory-limit", default=6144, help="Maximum RAM in megabytes.", show_default=True, type=int)
+@click.argument("database", metavar="<database>", type=click.File("rb"))
+@click.option("--min-battles", default=50, help="Minimum tank battles.", metavar="<battles>", show_default=True, type=int)
+@click.option("--feature-count", default=16, help="Feature count.", metavar="<count>", show_default=True, type=int)
+@click.option("--lambda", default=0.0, help="Regularization parameter.", metavar="<lambda>", show_default=True, type=float)
+@click.option("--memory-limit", default=6144, help="Maximum RAM in megabytes.", metavar="<mb>", show_default=True, type=int)
 def main(database, min_battles, feature_count, memory_limit, **kwargs):
     logging.basicConfig(format="%(asctime)s %(levelname)s %(message)s", level=logging.INFO, stream=sys.stderr)
     resource.setrlimit(resource.RLIMIT_AS, (memory_limit * 1048576, -1))
