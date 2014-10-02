@@ -107,9 +107,14 @@ def compare_files(accounts1, accounts2, statistics):
         # Items differ.
         statistics[Tag.CHANGED] += 1
         try:
-            yield account_id, list(compare_items(items1, items2))
+            items = list(compare_items(items1, items2))
         except ValueError as ex:
             logging.warning("Account #%s: %s.", account_id, str(ex))
+        else:
+            if items:
+                yield account_id, items
+            else:
+                logging.warning("Account #%s: no items in diff.", account_id)
 
 
 def compare_items(items1, items2):

@@ -6,6 +6,11 @@ import pytest
 import diff
 
 
-class TestDiff:
+class TestDiffCompareFiles:
+
+    pass
+
+
+class TestDiffCompareItems:
 
     pass
