@@ -18,7 +18,7 @@ import wotstats
 THRESHOLD = 50.0
 
 
-@click.command(help="Train model.")
+@click.command(help="Train model using Collaborative Filtering.")
 @click.argument("database", metavar="<database>", type=click.File("rb"))
 @click.option("--min-battles", default=50, help="Minimum tank battles.", metavar="<battles>", show_default=True, type=int)
 @click.option("--feature-count", default=16, help="Feature count.", metavar="<count>", show_default=True, type=int)
