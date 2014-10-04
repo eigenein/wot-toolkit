@@ -3,6 +3,11 @@
 
 typedef struct {
     PyObject_HEAD
+    /* Column count. */            int column_count;
+    /* Value count. */             int value_count;
+    /* Points to column starts. */ int *indptr;
+    /* Row indices. */             int *indices;
+    /* Corresponding values. */    double *values;
 } Model;
 
 /*
@@ -12,22 +17,38 @@ typedef struct {
 
 static PyObject *
 model_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
-    const Model *self = (Model*)type->tp_alloc(type, 0);
+    Model *self = (Model*)type->tp_alloc(type, 0);
     if (self != NULL) {
-        // TODO.
+        self->column_count = self->value_count = 0;
+        self->indices = self->indptr = NULL;
+        self->values = NULL;
     }
     return (PyObject*)self;
 }
 
 static int
 model_init(Model *self, PyObject *args, PyObject *kwargs) {
-    // TODO.
+    static char *kwlist[] = {"column_count", "value_count", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii", kwlist, &self->column_count, &self->value_count)) {
+        return -1;
+    }
+    if (
+        !(self->indptr = PyMem_RawMalloc(self->column_count * sizeof(int) + sizeof(int))) ||
+        !(self->indices = PyMem_RawMalloc(self->value_count * sizeof(int))) ||
+        !(self->values = PyMem_RawMalloc(self->value_count * sizeof(double)))
+    ) {
+        PyErr_NoMemory();
+        return -1;
+    }
+    self->indptr[self->column_count] = self->value_count;
     return 0;
 }
 
 static void
 model_dealloc(Model *self) {
-    // TODO.
+    PyMem_RawFree(self->indptr);
+    PyMem_RawFree(self->indices);
+    PyMem_RawFree(self->values);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
