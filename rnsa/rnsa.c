@@ -3,12 +3,14 @@
 
 typedef struct {
     PyObject_HEAD
+    /* Row count. */               int row_count;
     /* Column count. */            int column_count;
     /* Value count. */             int value_count;
     /* Cluster count. */           int k;
     /* Points to column starts. */ int *indptr;
     /* Row indices. */             int *indices;
     /* Corresponding values. */    double *values;
+    /* Cluster centers. */         double *centroids;
 } Model;
 
 /*
@@ -23,20 +25,25 @@ model_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
         self->column_count = self->value_count = self->k = 0;
         self->indices = self->indptr = NULL;
         self->values = NULL;
+        self->centroids = NULL;
     }
     return (PyObject*)self;
 }
 
 static int
 model_init(Model *self, PyObject *args, PyObject *kwargs) {
-    static char *kwlist[] = {"column_count", "value_count", "k", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iii", kwlist, &self->column_count, &self->value_count, &self->k)) {
+    static char *kwlist[] = {"row_count", "column_count", "value_count", "k", NULL};
+    if (!PyArg_ParseTupleAndKeywords(
+        args, kwargs, "iiii", kwlist,
+        &self->row_count, &self->column_count, &self->value_count, &self->k
+    )) {
         return -1;
     }
     if (
         !(self->indptr = PyMem_RawMalloc(self->column_count * sizeof(int) + sizeof(int))) ||
         !(self->indices = PyMem_RawMalloc(self->value_count * sizeof(int))) ||
-        !(self->values = PyMem_RawMalloc(self->value_count * sizeof(double)))
+        !(self->values = PyMem_RawMalloc(self->value_count * sizeof(double))) ||
+        !(self->centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(double)))
     ) {
         PyErr_NoMemory();
         return -1;
@@ -50,6 +57,7 @@ model_dealloc(Model *self) {
     PyMem_RawFree(self->indptr);
     PyMem_RawFree(self->indices);
     PyMem_RawFree(self->values);
+    PyMem_RawFree(self->centroids);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -59,6 +67,7 @@ model_dealloc(Model *self) {
  */
 
 static PyMemberDef model_members[] = {
+    {"row_count", T_INT, offsetof(Model, row_count), 0, "Row count."},
     {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
     {"value_count", T_INT, offsetof(Model, value_count), 0, "Value count."},
     {"k", T_INT, offsetof(Model, k), 0, "Cluster count."},
