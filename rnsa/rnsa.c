@@ -58,7 +58,8 @@ model_dealloc(Model *self) {
  */
 
 static PyMemberDef model_members[] = {
-    // TODO.
+    {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
+    {"value_count", T_INT, offsetof(Model, value_count), 0, "Value count."},
     {NULL}
 };
 
