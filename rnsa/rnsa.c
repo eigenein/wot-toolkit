@@ -5,6 +5,7 @@ typedef struct {
     PyObject_HEAD
     /* Column count. */            int column_count;
     /* Value count. */             int value_count;
+    /* Cluster count. */           int k;
     /* Points to column starts. */ int *indptr;
     /* Row indices. */             int *indices;
     /* Corresponding values. */    double *values;
@@ -19,7 +20,7 @@ static PyObject *
 model_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
     Model *self = (Model*)type->tp_alloc(type, 0);
     if (self != NULL) {
-        self->column_count = self->value_count = 0;
+        self->column_count = self->value_count = self->k = 0;
         self->indices = self->indptr = NULL;
         self->values = NULL;
     }
@@ -28,8 +29,8 @@ model_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
 
 static int
 model_init(Model *self, PyObject *args, PyObject *kwargs) {
-    static char *kwlist[] = {"column_count", "value_count", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ii", kwlist, &self->column_count, &self->value_count)) {
+    static char *kwlist[] = {"column_count", "value_count", "k", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "iii", kwlist, &self->column_count, &self->value_count, &self->k)) {
         return -1;
     }
     if (
@@ -60,6 +61,7 @@ model_dealloc(Model *self) {
 static PyMemberDef model_members[] = {
     {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
     {"value_count", T_INT, offsetof(Model, value_count), 0, "Value count."},
+    {"k", T_INT, offsetof(Model, k), 0, "Cluster count."},
     {NULL}
 };
 
