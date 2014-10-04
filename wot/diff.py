@@ -70,6 +70,7 @@ def compare_encyclopedias(encyclopedia1, encyclopedia2):
 
 def compare_files(accounts1, accounts2, statistics):
     "Compares two wotstats files."
+    accounts1, accounts2 = iter(accounts1), iter(accounts2)
     account1 = account2 = None
     while True:
         account1 = account1 or next_account(accounts1)
