@@ -130,7 +130,7 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
  */
 
 static PyObject *
-model_init_centroids(Model *self, PyObject *args, PyObject *kwargs) {
+model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
     float a, b;
 
     static char *kwlist[] = {"a", "b", NULL};
@@ -165,6 +165,16 @@ model_cost(Model *self, PyObject *args, PyObject *kwargs) {
 }
 
 /*
+  Helpers.
+--------------------------------------------------------------------------------
+ */
+
+float w(const unsigned long p, const unsigned long q) {
+    // TODO.
+    return 0.0f;
+}
+
+/*
   Model definition.
 --------------------------------------------------------------------------------
  */
@@ -181,7 +191,7 @@ static PyMethodDef model_methods[] = {
     {"get_centroid", (PyCFunction)model_get_centroid, METH_VARARGS | METH_KEYWORDS, "Gets centroid coordinate."},
     {"set_indptr", (PyCFunction)model_set_indptr, METH_VARARGS | METH_KEYWORDS, "Sets column start index."},
     {"set_value", (PyCFunction)model_set_value, METH_VARARGS | METH_KEYWORDS, "Sets value at the specified row position."},
-    {"init_centroids", (PyCFunction)model_init_centroids, METH_VARARGS | METH_KEYWORDS, "Randomly initializes centroids."},
+    {"prepare", (PyCFunction)model_prepare, METH_VARARGS | METH_KEYWORDS, "Prepares model for k-means algorithm."},
     {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does k-means algorithm iteration."},
     {"cost", (PyCFunction)model_cost, METH_VARARGS | METH_KEYWORDS, "Computes current cost."},
     {NULL}
