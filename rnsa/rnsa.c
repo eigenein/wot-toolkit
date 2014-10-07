@@ -43,7 +43,7 @@ model_init(Model *self, PyObject *args, PyObject *kwargs) {
         !(self->indptr = PyMem_RawMalloc(self->column_count * sizeof(*self->indptr) + sizeof(*self->indptr))) ||
         !(self->indices = PyMem_RawMalloc(self->value_count * sizeof(*self->indices))) ||
         !(self->values = PyMem_RawMalloc(self->value_count * sizeof(*self->values))) ||
-        !(self->centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(*self->centroids)))
+        !(self->centroids = PyMem_RawMalloc(self->k * self->column_count * sizeof(*self->centroids)))
     ) {
         PyErr_NoMemory();
         return -1;
@@ -60,6 +60,24 @@ model_dealloc(Model *self) {
     PyMem_RawFree(self->values);
     PyMem_RawFree(self->centroids);
     Py_TYPE(self)->tp_free((PyObject*)self);
+}
+
+/*
+  Model getters.
+--------------------------------------------------------------------------------
+ */
+
+static PyObject *
+model_get_centroid(Model *self, PyObject *args, PyObject *kwargs) {
+    unsigned long i, index;
+
+    static char *kwlist[] = {"i", "index", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kk", kwlist, &i, &index)) {
+        return NULL;
+    }
+
+    float (*centroids)[self->k] = self->centroids;
+    return Py_BuildValue("f", centroids[i][index]);
 }
 
 /*
@@ -107,6 +125,46 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
 }
 
 /*
+  Model methods.
+--------------------------------------------------------------------------------
+ */
+
+static PyObject *
+model_init_centroids(Model *self, PyObject *args, PyObject *kwargs) {
+    float a, b;
+
+    static char *kwlist[] = {"a", "b", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "ff", kwlist, &a, &b)) {
+        return NULL;
+    }
+
+    if (a > b) {
+        PyErr_SetString(PyExc_ValueError, "a must be less than b");
+        return NULL;
+    }
+
+    float (*centroids)[self->k] = self->centroids;
+
+    for (unsigned long i = 0; i < self->k; i++) {
+        for (unsigned long j = 0; j < self->column_count; j++) {
+            centroids[i][j] = a + (b - a) * (1.0f * rand() / RAND_MAX);
+        }
+    }
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+model_step(Model *self, PyObject *args, PyObject *kwargs) {
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+model_cost(Model *self, PyObject *args, PyObject *kwargs) {
+    Py_RETURN_NONE;
+}
+
+/*
   Model definition.
 --------------------------------------------------------------------------------
  */
@@ -120,8 +178,12 @@ static PyMemberDef model_members[] = {
 };
 
 static PyMethodDef model_methods[] = {
+    {"get_centroid", (PyCFunction)model_get_centroid, METH_VARARGS | METH_KEYWORDS, "Gets centroid coordinate."},
     {"set_indptr", (PyCFunction)model_set_indptr, METH_VARARGS | METH_KEYWORDS, "Sets column start index."},
     {"set_value", (PyCFunction)model_set_value, METH_VARARGS | METH_KEYWORDS, "Sets value at the specified row position."},
+    {"init_centroids", (PyCFunction)model_init_centroids, METH_VARARGS | METH_KEYWORDS, "Randomly initializes centroids."},
+    {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does k-means algorithm iteration."},
+    {"cost", (PyCFunction)model_cost, METH_VARARGS | METH_KEYWORDS, "Computes current cost."},
     {NULL}
 };
 
