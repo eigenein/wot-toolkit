@@ -3,14 +3,14 @@
 
 typedef struct {
     PyObject_HEAD
-    /* Row count. */               int row_count;
-    /* Column count. */            int column_count;
-    /* Value count. */             int value_count;
-    /* Cluster count. */           int k;
-    /* Points to column starts. */ int *indptr;
-    /* Row indices. */             int *indices;
-    /* Corresponding values. */    double *values;
-    /* Cluster centers. */         double *centroids;
+    /* Row count. */               unsigned long row_count;
+    /* Column count. */            unsigned long column_count;
+    /* Value count. */             unsigned long value_count;
+    /* Cluster count. */           unsigned long k;
+    /* Points to column starts. */ unsigned long *indptr;
+    /* Row indices. */             unsigned long *indices;
+    /* Corresponding values. */    float *values;
+    /* Cluster centers. */         float *centroids;
 } Model;
 
 /*
@@ -34,20 +34,21 @@ static int
 model_init(Model *self, PyObject *args, PyObject *kwargs) {
     static char *kwlist[] = {"row_count", "column_count", "value_count", "k", NULL};
     if (!PyArg_ParseTupleAndKeywords(
-        args, kwargs, "iiii", kwlist,
+        args, kwargs, "kkkk", kwlist,
         &self->row_count, &self->column_count, &self->value_count, &self->k
     )) {
         return -1;
     }
     if (
-        !(self->indptr = PyMem_RawMalloc(self->column_count * sizeof(int) + sizeof(int))) ||
-        !(self->indices = PyMem_RawMalloc(self->value_count * sizeof(int))) ||
-        !(self->values = PyMem_RawMalloc(self->value_count * sizeof(double))) ||
-        !(self->centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(double)))
+        !(self->indptr = PyMem_RawMalloc(self->column_count * sizeof(*self->indptr) + sizeof(*self->indptr))) ||
+        !(self->indices = PyMem_RawMalloc(self->value_count * sizeof(*self->indices))) ||
+        !(self->values = PyMem_RawMalloc(self->value_count * sizeof(*self->values))) ||
+        !(self->centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(*self->centroids)))
     ) {
         PyErr_NoMemory();
         return -1;
     }
+    self->indptr[0] = 0ul;
     self->indptr[self->column_count] = self->value_count;
     return 0;
 }
@@ -62,20 +63,65 @@ model_dealloc(Model *self) {
 }
 
 /*
+  Model setters.
+--------------------------------------------------------------------------------
+ */
+
+static PyObject *
+model_set_indptr(Model *self, PyObject *args, PyObject *kwargs) {
+    unsigned long j, index;
+
+    static char *kwlist[] = {"j", "index", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kk", kwlist, &j, &index)) {
+        return NULL;
+    }
+
+    if ((j == 0) || (j >= self->column_count)) {
+        PyErr_SetObject(PyExc_ValueError, Py_BuildValue("k", j));
+        return NULL;
+    }
+
+    self->indptr[j] = index;
+
+    Py_RETURN_NONE;
+}
+
+static PyObject *
+model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
+    unsigned long index;
+    float value;
+
+    static char *kwlist[] = {"index", "value", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kf", kwlist, &index, &value)) {
+        return NULL;
+    }
+
+    if (index >= self->value_count) {
+        PyErr_SetObject(PyExc_ValueError, Py_BuildValue("k", index));
+        return NULL;
+    }
+
+    self->values[index] = value;
+
+    Py_RETURN_NONE;
+}
+
+/*
   Model definition.
 --------------------------------------------------------------------------------
  */
 
 static PyMemberDef model_members[] = {
-    {"row_count", T_INT, offsetof(Model, row_count), 0, "Row count."},
-    {"column_count", T_INT, offsetof(Model, column_count), 0, "Column count."},
-    {"value_count", T_INT, offsetof(Model, value_count), 0, "Value count."},
-    {"k", T_INT, offsetof(Model, k), 0, "Cluster count."},
+    {"row_count", T_ULONG, offsetof(Model, row_count), 0, "Row count."},
+    {"column_count", T_ULONG, offsetof(Model, column_count), 0, "Column count."},
+    {"value_count", T_ULONG, offsetof(Model, value_count), 0, "Value count."},
+    {"k", T_ULONG, offsetof(Model, k), 0, "Cluster count."},
     {NULL}
 };
 
 static PyMethodDef model_methods[] = {
-    // TODO.
+    {"set_indptr", (PyCFunction)model_set_indptr, METH_VARARGS | METH_KEYWORDS, "Sets column start index."},
+    {"set_value", (PyCFunction)model_set_value, METH_VARARGS | METH_KEYWORDS, "Sets value at the specified row position."},
     {NULL}
 };
 
@@ -138,13 +184,13 @@ PyInit_rnsa(void)
 {
     PyObject *module;
 
-    ModelType.tp_new = PyType_GenericNew;
-    if (PyType_Ready(&ModelType) < 0) {
+    module = PyModule_Create(&rnsa_module);
+    if (module == NULL) {
         return NULL;
     }
 
-    module = PyModule_Create(&rnsa_module);
-    if (module == NULL) {
+    ModelType.tp_new = PyType_GenericNew;
+    if (PyType_Ready(&ModelType) < 0) {
         return NULL;
     }
 

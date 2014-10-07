@@ -21,3 +21,25 @@ def test_members():
     assert model.column_count == 100
     assert model.value_count == 50
     assert model.k == 10
+
+
+def test_set_indptr_positive():
+    rnsa.Model(2, 2, 2, 2).set_indptr(1, 1)
+
+
+@pytest.mark.parametrize(["j"], [
+    (0, ),
+    (2, ),
+])
+def test_set_indptr_negative(j):
+    with pytest.raises(ValueError):
+        rnsa.Model(2, 2, 2, 2).set_indptr(j, 1)
+
+
+def test_set_value_positive():
+    rnsa.Model(2, 2, 2, 2).set_value(0, 1.0)
+
+
+def test_set_value_negative():
+    with pytest.raises(ValueError):
+        rnsa.Model(2, 2, 2, 2).set_value(2, 1.0)
