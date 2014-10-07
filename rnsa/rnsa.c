@@ -43,7 +43,7 @@ model_init(Model *self, PyObject *args, PyObject *kwargs) {
         !(self->indptr = PyMem_RawMalloc(self->column_count * sizeof(*self->indptr) + sizeof(*self->indptr))) ||
         !(self->indices = PyMem_RawMalloc(self->value_count * sizeof(*self->indices))) ||
         !(self->values = PyMem_RawMalloc(self->value_count * sizeof(*self->values))) ||
-        !(self->centroids = PyMem_RawMalloc(self->k * self->column_count * sizeof(*self->centroids)))
+        !(self->centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(*self->centroids)))
     ) {
         PyErr_NoMemory();
         return -1;
@@ -146,7 +146,7 @@ model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
     float (*centroids)[self->k] = self->centroids;
 
     for (unsigned long i = 0; i < self->k; i++) {
-        for (unsigned long j = 0; j < self->column_count; j++) {
+        for (unsigned long j = 0; j < self->row_count; j++) {
             centroids[i][j] = a + (b - a) * (1.0f * rand() / RAND_MAX);
         }
     }
@@ -156,11 +156,13 @@ model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
 
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
+    // TODO: k-means algorithm iteration.
     Py_RETURN_NONE;
 }
 
 static PyObject *
 model_cost(Model *self, PyObject *args, PyObject *kwargs) {
+    // TODO: compute cost.
     Py_RETURN_NONE;
 }
 
@@ -170,7 +172,7 @@ model_cost(Model *self, PyObject *args, PyObject *kwargs) {
  */
 
 float w(const unsigned long p, const unsigned long q) {
-    // TODO.
+    // TODO: Pearson correlation coefficient. p and q are accounts (columns).
     return 0.0f;
 }
 
