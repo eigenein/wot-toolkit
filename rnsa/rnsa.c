@@ -198,8 +198,8 @@ unsigned long find_nearest_centroid(
 ) {
     const float (*centroids)[row_count] = (float (*)[row_count])self_centroids;
 
-    unsigned long nearest_index = rand() % k;
-    float max_w = -1.0f;
+    unsigned long nearest_index = -1;
+    float max_w = -2.0f; // -1.0 - alpha
 
     for (unsigned long index = 0; index < k; index++) {
         float avg_centroid = 0.0f;
@@ -277,6 +277,9 @@ model_step(Model *self, PyObject *args, PyObject *kwargs) {
     for (unsigned long j = 0; j < self->column_count; j++) {
         const unsigned long index = find_nearest_centroid(
             self->row_count, self->k, self->indptr, self->indices, self->values, self->centroids, j);
+        if (index == -1) {
+            continue;
+        }
         for (unsigned long ptr = self->indptr[j]; ptr != self->indptr[j + 1]; ptr++) {
             new_centroids[index][self->indices[ptr]] += self->values[ptr];
             new_counter[index][self->indices[ptr]] += 1;

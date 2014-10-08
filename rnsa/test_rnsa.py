@@ -99,7 +99,7 @@ def test_find_nearest_centroid():
     model.set_value(2, 0, 0.0)
     model.set_value(3, 1, 0.0)
     model.init_centroids(-1.0, 1.0)
-    model._find_nearest_centroid(0)
+    assert model._find_nearest_centroid(0) == model._find_nearest_centroid(0)
 
 
 def test_step():
