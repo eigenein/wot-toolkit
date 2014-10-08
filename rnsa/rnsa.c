@@ -154,39 +154,6 @@ float avg(const unsigned long *indptr, const float *values, const unsigned long 
     return sum / (indptr[j + 1] - indptr[j]);
 }
 
-float w(
-    const unsigned long *indptr,
-    const unsigned long *indices,
-    const float *values,
-    const unsigned long j1,
-    const unsigned long j2
-) {
-    const float avg_1 = avg(indptr, values, j1);
-    const float avg_2 = avg(indptr, values, j2);
-
-    float upper_sum = 0.0f, sum_squared_1 = 0.0f, sum_squared_2 = 0.0f;
-
-    unsigned long ptr_1 = indptr[j1], ptr_2 = indptr[j2];
-
-    while ((ptr_1 != indptr[j1 + 1]) && (ptr_2 != indptr[j2 + 1])) {
-        if (indices[ptr_1] == indices[ptr_2]) {
-            const float diff_1 = values[ptr_1] - avg_1;
-            const float diff_2 = values[ptr_2] - avg_2;
-            upper_sum += diff_1 * diff_2;
-            sum_squared_1 += diff_1 * diff_1;
-            sum_squared_2 += diff_2 * diff_2;
-            ptr_1 += 1;
-            ptr_2 += 1;
-        } else if (indices[ptr_1] < indices[ptr_2]) {
-            ptr_1 += 1;
-        } else {
-            ptr_2 += 1;
-        }
-    }
-
-    return upper_sum / sqrt(sum_squared_1 * sum_squared_2);
-}
-
 unsigned long find_nearest_centroid(
     const unsigned long row_count,
     const unsigned long k,
@@ -318,18 +285,6 @@ model_avg(Model *self, PyObject *args, PyObject *kwargs) {
 }
 
 static PyObject *
-model_w(Model *self, PyObject *args, PyObject *kwargs) {
-    unsigned long j1, j2;
-
-    static char *kwlist[] = {"j1", "j2", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kk", kwlist, &j1, &j2)) {
-        return NULL;
-    }
-
-    return Py_BuildValue("f", w(self->indptr, self->indices, self->values, j1, j2));
-}
-
-static PyObject *
 model_find_nearest_centroid(Model *self, PyObject *args, PyObject *kwargs) {
     unsigned long j;
 
@@ -363,7 +318,6 @@ static PyMethodDef model_methods[] = {
     {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does k-means algorithm iteration."},
     {"cost", (PyCFunction)model_cost, METH_VARARGS | METH_KEYWORDS, "Computes current cost."},
     {"_avg", (PyCFunction)model_avg, METH_VARARGS | METH_KEYWORDS, "Computes average rating."},
-    {"_w", (PyCFunction)model_w, METH_VARARGS | METH_KEYWORDS, "Computes correlation."},
     {"_find_nearest_centroid", (PyCFunction)model_find_nearest_centroid, METH_VARARGS | METH_KEYWORDS, "Finds nearest centroid."},
     {NULL}
 };

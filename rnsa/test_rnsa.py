@@ -66,31 +66,6 @@ def test_avg():
     assert model._avg(1) == 4.0
 
 
-@pytest.mark.parametrize(["j1", "j2", "expected"], [
-    (0, 1, 1.0),
-    (0, 2, -1.0),
-    (0, 3, float("nan")),
-    (1, 2, -1.0),
-    (1, 3, float("nan")),
-    (2, 3, float("nan")),
-])
-def test_w(j1, j2, expected):
-    model = rnsa.Model(row_count=4, column_count=4, value_count=8, k=0)
-    model.set_value(0, 0, 0.0)
-    model.set_value(1, 1, 2.0)
-    model.set_indptr(j=1, index=2)
-    model.set_value(2, 0, 0.0)
-    model.set_value(3, 1, 2.0)
-    model.set_indptr(j=2, index=4)
-    model.set_value(4, 0, 0.0)
-    model.set_value(5, 1, -2.0)
-    model.set_indptr(j=3, index=6)
-    model.set_value(6, 2, 1.0)
-    model.set_value(7, 3, 2.0)
-    w = model._w(j1, j2)
-    assert (w == expected) or (math.isnan(expected) and math.isnan(w))
-
-
 def test_find_nearest_centroid():
     model = rnsa.Model(row_count=2, column_count=2, value_count=4, k=32)
     model.set_value(0, 0, 0.0)
