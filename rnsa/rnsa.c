@@ -109,8 +109,8 @@ model_set_indptr(Model *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    if ((j == 0) || (j >= self->column_count)) {
-        PyErr_SetObject(PyExc_ValueError, Py_BuildValue("k", j));
+    if (((j == 0) && (index != 0)) || (j >= self->column_count)) {
+        PyErr_SetObject(PyExc_ValueError, Py_BuildValue("(kk)", j, index));
         return NULL;
     }
 
