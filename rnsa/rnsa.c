@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include <Python.h>
 #include <structmember.h>
 
@@ -112,10 +114,11 @@ model_set_indptr(Model *self, PyObject *args, PyObject *kwargs) {
 static PyObject *
 model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
     unsigned long index;
+    unsigned long row;
     float value;
 
-    static char *kwlist[] = {"index", "value", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kf", kwlist, &index, &value)) {
+    static char *kwlist[] = {"index", "row", "value", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kkf", kwlist, &index, &row, &value)) {
         return NULL;
     }
 
@@ -124,9 +127,56 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
+    self->indices[index] = row;
     self->values[index] = value;
 
     Py_RETURN_NONE;
+}
+
+/*
+  Helpers.
+--------------------------------------------------------------------------------
+ */
+
+float avg(const unsigned long *indptr, const float *values, const unsigned long j) {
+    float sum = 0.0f;
+    for (unsigned long index = indptr[j]; index != indptr[j + 1]; index += 1) {
+        sum += values[index];
+    }
+    return sum / (indptr[j + 1] - indptr[j]);
+}
+
+float w(
+    const unsigned long *indptr,
+    const unsigned long *indices,
+    const float *values,
+    const unsigned long j1,
+    const unsigned long j2
+) {
+    const float avg_1 = avg(indptr, values, j1);
+    const float avg_2 = avg(indptr, values, j2);
+
+    float upper_sum = 0.0f, sum_squared_1 = 0.0f, sum_squared_2 = 0.0f;
+
+    unsigned long ptr_1 = indptr[j1], ptr_2 = indptr[j2];
+
+    while ((ptr_1 != indptr[j1 + 1]) && (ptr_2 != indptr[j2 + 1])) {
+        if (indices[ptr_1] == indices[ptr_2]) {
+            const float diff_1 = values[ptr_1] - avg_1;
+            const float diff_2 = values[ptr_2] - avg_2;
+            upper_sum += diff_1 * diff_2;
+            sum_squared_1 += diff_1 * diff_1;
+            sum_squared_2 += diff_2 * diff_2;
+            ptr_1 += 1;
+            ptr_2 += 1;
+        } else if (indices[ptr_1] < indices[ptr_2]) {
+            ptr_1 += 1;
+        } else {
+            ptr_2 += 1;
+        }
+    }
+
+    return upper_sum / sqrt(sum_squared_1 * sum_squared_2);
 }
 
 /*
@@ -171,14 +221,28 @@ model_cost(Model *self, PyObject *args, PyObject *kwargs) {
     Py_RETURN_NONE;
 }
 
-/*
-  Helpers.
---------------------------------------------------------------------------------
- */
+static PyObject *
+model_avg(Model *self, PyObject *args, PyObject *kwargs) {
+    unsigned long j;
 
-float w(const unsigned long p, const unsigned long q) {
-    // TODO: Pearson correlation coefficient. p and q are accounts (columns).
-    return 0.0f;
+    static char *kwlist[] = {"j", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "k", kwlist, &j)) {
+        return NULL;
+    }
+
+    return Py_BuildValue("f", avg(self->indptr, self->values, j));
+}
+
+static PyObject *
+model_w(Model *self, PyObject *args, PyObject *kwargs) {
+    unsigned long j1, j2;
+
+    static char *kwlist[] = {"j1", "j2", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kk", kwlist, &j1, &j2)) {
+        return NULL;
+    }
+
+    return Py_BuildValue("f", w(self->indptr, self->indices, self->values, j1, j2));
 }
 
 /*
@@ -201,6 +265,8 @@ static PyMethodDef model_methods[] = {
     {"init_centroids", (PyCFunction)model_init_centroids, METH_VARARGS | METH_KEYWORDS, "Randomly initializes centroids."},
     {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does k-means algorithm iteration."},
     {"cost", (PyCFunction)model_cost, METH_VARARGS | METH_KEYWORDS, "Computes current cost."},
+    {"_avg", (PyCFunction)model_avg, METH_VARARGS | METH_KEYWORDS, "Computes average rating."},
+    {"_w", (PyCFunction)model_w, METH_VARARGS | METH_KEYWORDS, "Computes correlation."},
     {NULL}
 };
 
