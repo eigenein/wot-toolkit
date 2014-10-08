@@ -48,7 +48,7 @@ def test_set_value_negative():
 
 
 def test_init_centroids():
-    model = rnsa.Model(2, 1, 1, 1)
+    model = rnsa.Model(row_count=2, column_count=5, value_count=10, k=10)
     model.init_centroids(-1.0, 1.0)
     assert -1.0 <= model.get_centroid(0)[0] <= 1.0
     assert -1.0 <= model.get_centroid(0)[1] <= 1.0
@@ -89,3 +89,37 @@ def test_w(j1, j2, expected):
     model.set_value(7, 3, 2.0)
     w = model._w(j1, j2)
     assert (w == expected) or (math.isnan(expected) and math.isnan(w))
+
+
+def test_find_nearest_centroid():
+    model = rnsa.Model(row_count=2, column_count=2, value_count=4, k=32)
+    model.set_value(0, 0, 0.0)
+    model.set_value(1, 1, 0.0)
+    model.set_indptr(j=1, index=2)
+    model.set_value(2, 0, 0.0)
+    model.set_value(3, 1, 0.0)
+    model.init_centroids(-1.0, 1.0)
+    assert model._find_nearest_centroid(0) == model._find_nearest_centroid(1)
+
+
+def test_step():
+    model = rnsa.Model(row_count=2, column_count=5, value_count=10, k=3)
+    model.set_value(0, 0, -100.0)
+    model.set_value(1, 1, +1.0)
+    model.set_indptr(j=1, index=2)
+    model.set_value(2, 0, -100.0)
+    model.set_value(3, 1, -1.0)
+    model.set_indptr(j=2, index=4)
+    model.set_value(4, 0, +100.0)
+    model.set_value(5, 1, +1.0)
+    model.set_indptr(j=3, index=6)
+    model.set_value(6, 0, +100.0)
+    model.set_value(7, 1, -1.0)
+    model.set_indptr(j=4, index=8)
+    model.set_value(8, 0, 0.0)
+    model.set_value(9, 1, 0.0)
+    model.init_centroids(-100.0, 100.0)
+    for i in range(100):
+        model.step()
+        print(model.get_centroid(0), model.get_centroid(1), model.get_centroid(2))
+    assert False, (model.get_centroid(0), model.get_centroid(1), model.get_centroid(2))

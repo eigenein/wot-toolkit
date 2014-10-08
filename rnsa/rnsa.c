@@ -5,14 +5,16 @@
 
 typedef struct {
     PyObject_HEAD
-    /* Row count. */               unsigned long row_count;
-    /* Column count. */            unsigned long column_count;
-    /* Value count. */             unsigned long value_count;
-    /* Cluster count. */           unsigned long k;
-    /* Points to column starts. */ unsigned long *indptr;
-    /* Row indices. */             unsigned long *indices;
-    /* Corresponding values. */    float *values;
-    /* Cluster centers. */         float *centroids;
+    /* Row count. */                   unsigned long row_count;
+    /* Column count. */                unsigned long column_count;
+    /* Value count. */                 unsigned long value_count;
+    /* Cluster count. */               unsigned long k;
+    /* Points to column starts. */     unsigned long *indptr;
+    /* Row indices. */                 unsigned long *indices;
+    /* Corresponding values. */        float *values;
+    /* Cluster centers. */             float *centroids;
+    /* Used when moving centroids. */  float *new_centroids;
+    /* Used when moving centroids. */  unsigned long *new_counter;
 } Model;
 
 /*
@@ -28,6 +30,8 @@ model_new(PyTypeObject *type, PyObject *args, PyObject *kwargs) {
         self->indices = self->indptr = NULL;
         self->values = NULL;
         self->centroids = NULL;
+        self->new_centroids = NULL;
+        self->new_counter = NULL;
     }
     return (PyObject*)self;
 }
@@ -45,7 +49,9 @@ model_init(Model *self, PyObject *args, PyObject *kwargs) {
         !(self->indptr = PyMem_RawMalloc(self->column_count * sizeof(*self->indptr) + sizeof(*self->indptr))) ||
         !(self->indices = PyMem_RawMalloc(self->value_count * sizeof(*self->indices))) ||
         !(self->values = PyMem_RawMalloc(self->value_count * sizeof(*self->values))) ||
-        !(self->centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(*self->centroids)))
+        !(self->centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(*self->centroids))) ||
+        !(self->new_centroids = PyMem_RawMalloc(self->k * self->row_count * sizeof(*self->new_centroids))) ||
+        !(self->new_counter = PyMem_RawMalloc(self->k * self->row_count * sizeof(*self->new_counter)))
     ) {
         PyErr_NoMemory();
         return -1;
@@ -61,6 +67,8 @@ model_dealloc(Model *self) {
     PyMem_RawFree(self->indices);
     PyMem_RawFree(self->values);
     PyMem_RawFree(self->centroids);
+    PyMem_RawFree(self->new_centroids);
+    PyMem_RawFree(self->new_counter);
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
@@ -179,6 +187,48 @@ float w(
     return upper_sum / sqrt(sum_squared_1 * sum_squared_2);
 }
 
+unsigned long find_nearest_centroid(
+    const unsigned long row_count,
+    const unsigned long k,
+    const unsigned long *indptr,
+    const unsigned long *indices,
+    const float *values,
+    const float *self_centroids,
+    const unsigned long j
+) {
+    const float (*centroids)[k] = (float (*)[k])self_centroids;
+
+    unsigned long nearest_index = rand() % k;
+    float lowest_w = INFINITY;
+
+    for (unsigned long index = 0; index < k; index++) {
+        float avg_centroid = 0.0f;
+        for (unsigned long i = 0; i < row_count; i++) {
+            avg_centroid += centroids[index][i];
+        }
+        avg_centroid /= row_count;
+
+        float avg_j = avg(indptr, values, j);
+
+        float upper_sum = 0.0f, sum_squared_1 = 0.0f, sum_squared_2 = 0.0f;
+        for (unsigned long ptr = indptr[j]; ptr != indptr[j + 1]; ptr++) {
+            const float diff_centroid = centroids[index][indices[ptr]] - avg_centroid;
+            const float diff_j = values[ptr] - avg_j;
+            upper_sum += diff_centroid * diff_j;
+            sum_squared_1 += diff_centroid * diff_centroid;
+            sum_squared_2 += diff_j * diff_j;
+        }
+
+        const float w = upper_sum / sqrt(sum_squared_1 * sum_squared_2);
+        if ((w == w) && (w < lowest_w)) {
+            nearest_index = index;
+            lowest_w = w;
+        }
+    }
+
+    return nearest_index;
+}
+
 /*
   Model methods.
 --------------------------------------------------------------------------------
@@ -200,9 +250,9 @@ model_init_centroids(Model *self, PyObject *args, PyObject *kwargs) {
 
     float (*centroids)[self->k] = (float (*)[self->k])self->centroids;
 
-    for (unsigned long i = 0; i < self->k; i++) {
-        for (unsigned long j = 0; j < self->row_count; j++) {
-            centroids[i][j] = a + (b - a) * (1.0f * rand() / RAND_MAX);
+    for (unsigned long index = 0; index < self->k; index++) {
+        for (unsigned long i = 0; i < self->row_count; i++) {
+            centroids[index][i] = a + (b - a) * (1.0f * rand() / RAND_MAX);
         }
     }
 
@@ -211,7 +261,36 @@ model_init_centroids(Model *self, PyObject *args, PyObject *kwargs) {
 
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
-    // TODO: k-means algorithm iteration.
+    float (*new_centroids)[self->k] = (float (*)[self->k])self->new_centroids;
+    float (*centroids)[self->k] = (float (*)[self->k])self->centroids;
+    unsigned long (*new_counter)[self->k] = (unsigned long (*)[self->k])self->new_counter;
+
+    for (unsigned long index = 0; index < self->k; index++) {
+        for (unsigned long i = 0; i < self->row_count; i++) {
+            new_centroids[index][i] = 0.0f;
+            new_counter[index][i] = 0ul;
+        }
+    }
+    // Cluster assignment step.
+    for (unsigned long j = 0; j < self->column_count; j++) {
+        const unsigned long index = find_nearest_centroid(
+            self->row_count, self->k, self->indptr, self->indices, self->values, self->centroids, j);
+        for (unsigned long ptr = self->indptr[j]; ptr != self->indptr[j + 1]; ptr++) {
+            new_centroids[index][self->indices[ptr]] += self->values[ptr];
+            new_counter[index][self->indices[ptr]] += 1;
+        }
+    }
+    // Move centroids.
+    for (unsigned long index = 0; index < self->k; index++) {
+        for (unsigned long i = 0; i < self->row_count; i++) {
+            if (new_counter[index][i] != 0) {
+                centroids[index][i] = new_centroids[index][i] / new_counter[index][i];
+            } else {
+                centroids[index][i] = 0.0f;
+            }
+        }
+    }
+
     Py_RETURN_NONE;
 }
 
@@ -245,6 +324,19 @@ model_w(Model *self, PyObject *args, PyObject *kwargs) {
     return Py_BuildValue("f", w(self->indptr, self->indices, self->values, j1, j2));
 }
 
+static PyObject *
+model_find_nearest_centroid(Model *self, PyObject *args, PyObject *kwargs) {
+    unsigned long j;
+
+    static char *kwlist[] = {"j", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "k", kwlist, &j)) {
+        return NULL;
+    }
+
+    return Py_BuildValue("f", find_nearest_centroid(
+        self->row_count, self->k, self->indptr, self->indices, self->values, self->centroids, j));
+}
+
 /*
   Model definition.
 --------------------------------------------------------------------------------
@@ -267,6 +359,7 @@ static PyMethodDef model_methods[] = {
     {"cost", (PyCFunction)model_cost, METH_VARARGS | METH_KEYWORDS, "Computes current cost."},
     {"_avg", (PyCFunction)model_avg, METH_VARARGS | METH_KEYWORDS, "Computes average rating."},
     {"_w", (PyCFunction)model_w, METH_VARARGS | METH_KEYWORDS, "Computes correlation."},
+    {"_find_nearest_centroid", (PyCFunction)model_find_nearest_centroid, METH_VARARGS | METH_KEYWORDS, "Finds nearest centroid."},
     {NULL}
 };
 
