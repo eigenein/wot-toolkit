@@ -86,7 +86,7 @@ model_get_centroid(Model *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    float (*centroids)[self->k] = (float (*)[self->k])self->centroids;
+    float (*centroids)[self->row_count] = (float (*)[self->row_count])self->centroids;
     PyObject *centroid = PyTuple_New(self->row_count);
     for (unsigned long i = 0; i < self->row_count; i++) {
         PyTuple_SET_ITEM(centroid, i, Py_BuildValue("f", centroids[index][i]));
@@ -196,10 +196,10 @@ unsigned long find_nearest_centroid(
     const float *self_centroids,
     const unsigned long j
 ) {
-    const float (*centroids)[k] = (float (*)[k])self_centroids;
+    const float (*centroids)[row_count] = (float (*)[row_count])self_centroids;
 
     unsigned long nearest_index = rand() % k;
-    float lowest_w = INFINITY;
+    float max_w = -1.0f;
 
     for (unsigned long index = 0; index < k; index++) {
         float avg_centroid = 0.0f;
@@ -220,9 +220,9 @@ unsigned long find_nearest_centroid(
         }
 
         const float w = upper_sum / sqrt(sum_squared_1 * sum_squared_2);
-        if ((w == w) && (w < lowest_w)) {
+        if ((w == w) && (w > max_w)) {
             nearest_index = index;
-            lowest_w = w;
+            max_w = w;
         }
     }
 
@@ -248,7 +248,9 @@ model_init_centroids(Model *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    float (*centroids)[self->k] = (float (*)[self->k])self->centroids;
+    srand(time(NULL));
+
+    float (*centroids)[self->row_count] = (float (*)[self->row_count])self->centroids;
 
     for (unsigned long index = 0; index < self->k; index++) {
         for (unsigned long i = 0; i < self->row_count; i++) {
@@ -261,9 +263,9 @@ model_init_centroids(Model *self, PyObject *args, PyObject *kwargs) {
 
 static PyObject *
 model_step(Model *self, PyObject *args, PyObject *kwargs) {
-    float (*new_centroids)[self->k] = (float (*)[self->k])self->new_centroids;
-    float (*centroids)[self->k] = (float (*)[self->k])self->centroids;
-    unsigned long (*new_counter)[self->k] = (unsigned long (*)[self->k])self->new_counter;
+    float (*new_centroids)[self->row_count] = (float (*)[self->row_count])self->new_centroids;
+    float (*centroids)[self->row_count] = (float (*)[self->row_count])self->centroids;
+    unsigned long (*new_counter)[self->row_count] = (unsigned long (*)[self->row_count])self->new_counter;
 
     for (unsigned long index = 0; index < self->k; index++) {
         for (unsigned long i = 0; i < self->row_count; i++) {
@@ -333,7 +335,7 @@ model_find_nearest_centroid(Model *self, PyObject *args, PyObject *kwargs) {
         return NULL;
     }
 
-    return Py_BuildValue("f", find_nearest_centroid(
+    return Py_BuildValue("k", find_nearest_centroid(
         self->row_count, self->k, self->indptr, self->indices, self->values, self->centroids, j));
 }
 
