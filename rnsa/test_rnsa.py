@@ -45,8 +45,8 @@ def test_set_value_negative():
         rnsa.Model(2, 2, 2, 2).set_value(2, 1.0)
 
 
-def test_prepare():
+def test_init_centroids():
     model = rnsa.Model(2, 1, 1, 1)
-    model.prepare(-1.0, 1.0)
-    assert -1.0 <= model.get_centroid(0, 0) <= 1.0
-    assert -1.0 <= model.get_centroid(0, 1) <= 1.0
+    model.init_centroids(-1.0, 1.0)
+    assert -1.0 <= model.get_centroid(0)[0] <= 1.0
+    assert -1.0 <= model.get_centroid(0)[1] <= 1.0

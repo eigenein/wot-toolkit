@@ -69,15 +69,20 @@ model_dealloc(Model *self) {
 
 static PyObject *
 model_get_centroid(Model *self, PyObject *args, PyObject *kwargs) {
-    unsigned long i, index;
+    unsigned long index;
 
-    static char *kwlist[] = {"i", "index", NULL};
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "kk", kwlist, &i, &index)) {
+    static char *kwlist[] = {"index", NULL};
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "k", kwlist, &index)) {
         return NULL;
     }
 
-    float (*centroids)[self->k] = self->centroids;
-    return Py_BuildValue("f", centroids[i][index]);
+    float (*centroids)[self->k] = (float (*)[self->k])self->centroids;
+    PyObject *centroid = PyTuple_New(self->row_count);
+    for (unsigned long i = 0; i < self->row_count; i++) {
+        PyTuple_SET_ITEM(centroid, i, Py_BuildValue("f", centroids[index][i]));
+    }
+
+    return centroid;
 }
 
 /*
@@ -130,7 +135,7 @@ model_set_value(Model *self, PyObject *args, PyObject *kwargs) {
  */
 
 static PyObject *
-model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
+model_init_centroids(Model *self, PyObject *args, PyObject *kwargs) {
     float a, b;
 
     static char *kwlist[] = {"a", "b", NULL};
@@ -139,11 +144,11 @@ model_prepare(Model *self, PyObject *args, PyObject *kwargs) {
     }
 
     if (a > b) {
-        PyErr_SetString(PyExc_ValueError, "a must be less than b");
+        PyErr_SetString(PyExc_ValueError, "a > b");
         return NULL;
     }
 
-    float (*centroids)[self->k] = self->centroids;
+    float (*centroids)[self->k] = (float (*)[self->k])self->centroids;
 
     for (unsigned long i = 0; i < self->k; i++) {
         for (unsigned long j = 0; j < self->row_count; j++) {
@@ -193,7 +198,7 @@ static PyMethodDef model_methods[] = {
     {"get_centroid", (PyCFunction)model_get_centroid, METH_VARARGS | METH_KEYWORDS, "Gets centroid coordinate."},
     {"set_indptr", (PyCFunction)model_set_indptr, METH_VARARGS | METH_KEYWORDS, "Sets column start index."},
     {"set_value", (PyCFunction)model_set_value, METH_VARARGS | METH_KEYWORDS, "Sets value at the specified row position."},
-    {"prepare", (PyCFunction)model_prepare, METH_VARARGS | METH_KEYWORDS, "Prepares model for k-means algorithm."},
+    {"init_centroids", (PyCFunction)model_init_centroids, METH_VARARGS | METH_KEYWORDS, "Randomly initializes centroids."},
     {"step", (PyCFunction)model_step, METH_VARARGS | METH_KEYWORDS, "Does k-means algorithm iteration."},
     {"cost", (PyCFunction)model_cost, METH_VARARGS | METH_KEYWORDS, "Computes current cost."},
     {NULL}
