@@ -83,6 +83,7 @@ class Dumper:
                 time.sleep(random.uniform(base_time, base_time * 2.0))
             except:
                 logging.critical("Error.", exc_info=True)
+                raise
 
     def execute_unsafe(self, account_id):
         response = self.local_session.session.get(
