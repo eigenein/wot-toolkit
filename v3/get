@@ -6,6 +6,7 @@ import heapq
 import itertools
 import logging
 import operator
+import random
 import sys
 import threading
 import time
@@ -18,21 +19,27 @@ import structs
 
 @click.command()
 @click.option("--max-id", default=40000000, help="Maximum account ID.", metavar="<id>", show_default=True)
-@click.option("--thread-count", default=10, help="thread count", metavar="<n>", show_default=True)
+@click.option("--thread-count", default=16, help="thread count", metavar="<n>", show_default=True)
 @click.option("--app-id", default="demo", help="application ID", metavar="<id>", show_default=True)
 @click.argument("output", metavar="<output>", type=click.File("wb"))
 def main(max_id, thread_count, app_id, output):
     "Get account statistics from Wargaming Public API."
-    logging.basicConfig(format="[%(module)s] %(levelname)s %(message)s", level=logging.INFO, stream=sys.stderr)
+
+    logging.basicConfig(
+        format="%(asctime)s (%(module)s) [%(threadName)10s] %(levelname)s %(message)s",
+        level=logging.INFO, stream=sys.stderr,
+    )
 
     logging.info("Writing header.")
     output.write(structs.magic)
 
     logging.info("Starting.")
+    dumper = Dumper(app_id, output)
     with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
-        dumper = Dumper(app_id, output)
         executor.map(dumper.execute, chop(range(1, max_id), 100))
-        dumper.dump()
+
+    logging.info("Final dump.")
+    dumper.dump()
 
     logging.info("Finished.")
 
@@ -60,24 +67,25 @@ class Dumper:
     def __init__(self, app_id, output):
         self.app_id = app_id
         self.output = output
-        self.start_time = time.time()
         self.expected_id = 1
         self.account_heap = []
+        self.start_time = time.time()
+        self.account_count = 0
 
     def execute(self, account_id):
-        for attempt in itertools.count(1):
+        for attempt in itertools.count():
             try:
                 return self.execute_unsafe(account_id)
             except WargamingApiError as e:
                 logging.warning("API error: %s attempt: %s.", e.message, attempt)
-                time.sleep(2.0 ** attempt / 2.0)
+                base_time = 2.0 ** attempt
+                time.sleep(random.uniform(base_time, base_time * 2.0))
             except:
                 logging.critical("Error.", exc_info=True)
 
     def execute_unsafe(self, account_id):
-        logging.info("Get: %d-%d.", account_id[0], account_id[-1])
         response = self.local_session.session.get(
-            "https://api.worldoftanks.ru/wot/account/tanks/",
+            "http://api.worldoftanks.ru/wot/account/tanks/",
             params={
                 "application_id": self.app_id,
                 "account_id": ",".join(map(str, account_id)),
@@ -89,13 +97,8 @@ class Dumper:
         if result["status"] != "ok":
             raise WargamingApiError(**result["error"])
         for account_id, tanks in result["data"].items():
-            self.receive(int(account_id), tanks)
-
-    def receive(self, account_id, tanks):
-        "Receives request result."
-        heapq.heappush(self.account_heap, (account_id, tanks))
-        if account_id == self.expected_id:
-            self.dump()
+            heapq.heappush(self.account_heap, (int(account_id), tanks))
+        self.dump()
 
     def dump(self):
         "Dumps account heap if possible."
@@ -112,7 +115,13 @@ class Dumper:
                     tank["statistics"]["battles"],
                     tank["statistics"]["wins"],
                 ))
-        logging.info("#%s heap: %s", self.expected_id, len(self.account_heap))
+            self.account_count += 1
+
+        aps = (self.expected_id + len(self.account_heap)) / (time.time() - self.start_time)
+        logging.info(
+            "#%s count: %s aps: %.1f apd: %.0f heap: %s",
+            self.expected_id, self.account_count, aps, aps * 86400.0, len(self.account_heap),
+        )
 
 
 def chop(iterable, length):
