@@ -71,6 +71,7 @@ class Dumper:
         self.account_heap = []
         self.start_time = time.time()
         self.account_count = 0
+        self.tank_count = 0
 
     def execute(self, account_id):
         for attempt in itertools.count():
@@ -115,12 +116,13 @@ class Dumper:
                     tank["statistics"]["battles"],
                     tank["statistics"]["wins"],
                 ))
+                self.tank_count += 1
             self.account_count += 1
 
         aps = (self.expected_id + len(self.account_heap)) / (time.time() - self.start_time)
         logging.info(
-            "#%s count: %s aps: %.1f apd: %.0f heap: %s",
-            self.expected_id, self.account_count, aps, aps * 86400.0, len(self.account_heap),
+            "#%s count: %s tanks: %s aps: %.1f apd: %.0f heap: %s",
+            self.expected_id, self.account_count, self.tank_count, aps, aps * 86400.0, len(self.account_heap),
         )
 
 
