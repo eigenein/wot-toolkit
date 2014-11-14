@@ -1,21 +1,127 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-import struct
+import concurrent.futures
+import heapq
+import itertools
+import logging
+import operator
+import sys
+import threading
+import time
 
 import click
 import requests
 
-
-entry_struct = struct.Struct("<IHII")  # (account_id, tank_id, battles, wins)
+import structs
 
 
 @click.command()
 @click.option("--max-id", default=40000000, help="Maximum account ID.", metavar="<id>", show_default=True)
+@click.option("--thread-count", default=10, help="thread count", metavar="<n>", show_default=True)
+@click.option("--app-id", default="demo", help="application ID", metavar="<id>", show_default=True)
 @click.argument("output", metavar="<output>", type=click.File("wb"))
-def main(max_id, output):
+def main(max_id, thread_count, app_id, output):
     "Get account statistics from Wargaming Public API."
-    pass
+    logging.basicConfig(format="[%(module)s] %(levelname)s %(message)s", level=logging.INFO, stream=sys.stderr)
+
+    logging.info("Writing header.")
+    output.write(structs.magic)
+
+    logging.info("Starting.")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
+        dumper = Dumper(app_id, output)
+        executor.map(dumper.execute, chop(range(1, max_id), 100))
+        dumper.dump()
+
+    logging.info("Finished.")
+
+
+class LocalSession(threading.local):
+    "Provider thread-local Session instance."
+
+    def __init__(self):
+        self.session = requests.Session()
+
+
+class WargamingApiError(Exception):
+    "Wargaming API error."
+
+    def __init__(self, code, message, **kwargs):
+        super(WargamingApiError, self).__init__(code, message)
+        self.code = code
+        self.message = message
+
+
+class Dumper:
+
+    local_session = LocalSession()
+
+    def __init__(self, app_id, output):
+        self.app_id = app_id
+        self.output = output
+        self.start_time = time.time()
+        self.expected_id = 1
+        self.account_heap = []
+
+    def execute(self, account_id):
+        for attempt in itertools.count(1):
+            try:
+                return self.execute_unsafe(account_id)
+            except WargamingApiError as e:
+                logging.warning("API error: %s attempt: %s.", e.message, attempt)
+                time.sleep(2.0 ** attempt / 2.0)
+            except:
+                logging.critical("Error.", exc_info=True)
+
+    def execute_unsafe(self, account_id):
+        logging.info("Get: %d-%d.", account_id[0], account_id[-1])
+        response = self.local_session.session.get(
+            "https://api.worldoftanks.ru/wot/account/tanks/",
+            params={
+                "application_id": self.app_id,
+                "account_id": ",".join(map(str, account_id)),
+                "fields": "statistics,tank_id",
+            },
+        )
+        response.raise_for_status()
+        result = response.json()
+        if result["status"] != "ok":
+            raise WargamingApiError(**result["error"])
+        for account_id, tanks in result["data"].items():
+            self.receive(int(account_id), tanks)
+
+    def receive(self, account_id, tanks):
+        "Receives request result."
+        heapq.heappush(self.account_heap, (account_id, tanks))
+        if account_id == self.expected_id:
+            self.dump()
+
+    def dump(self):
+        "Dumps account heap if possible."
+        while self.account_heap and (self.account_heap[0][0] == self.expected_id):
+            account_id, tanks = heapq.heappop(self.account_heap)
+            self.expected_id = account_id + 1
+            if tanks is None:
+                continue
+            tanks = sorted(tanks, key=operator.itemgetter("tank_id"))
+            for tank in tanks:
+                self.output.write(structs.entry.pack(
+                    account_id,
+                    tank["tank_id"],
+                    tank["statistics"]["battles"],
+                    tank["statistics"]["wins"],
+                ))
+        logging.info("#%s heap: %s", self.expected_id, len(self.account_heap))
+
+
+def chop(iterable, length):
+    iterable = iter(iterable)
+    while True:
+        chunk = list(itertools.islice(iterable, length))
+        if not chunk:
+            return
+        yield chunk
 
 
 if __name__ == "__main__":
