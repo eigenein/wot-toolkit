@@ -4,5 +4,4 @@
 import struct
 
 
-magic = b"WOTSTATS3"
 entry = struct.Struct("<IHII")  # (account_id, tank_id, battles, wins)

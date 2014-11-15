@@ -30,9 +30,6 @@ def main(max_id, thread_count, app_id, output):
         level=logging.INFO, stream=sys.stderr,
     )
 
-    logging.info("Writing header.")
-    output.write(structs.magic)
-
     logging.info("Starting.")
     dumper = Dumper(app_id, output)
     with concurrent.futures.ThreadPoolExecutor(max_workers=thread_count) as executor:
