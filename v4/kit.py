@@ -121,5 +121,16 @@ def read_uvarint(fp):
     return value
 
 
+def write_account_stats(account_id, tanks, fp):
+    """Writes account stats into file."""
+    fp.write(b">>")
+    write_uvarint(account_id, fp)
+    write_uvarint(len(tanks), fp)
+    for tank in tanks:
+        write_uvarint(tank["tank_id"], fp)
+        write_uvarint(tank["statistics"]["battles"], fp)
+        write_uvarint(tank["statistics"]["wins"], fp)
+
+
 if __name__ == "__main__":
     main()

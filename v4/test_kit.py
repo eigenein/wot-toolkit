@@ -27,3 +27,12 @@ def test_write_uvarint(value, expected):
 def test_read_uvarint(bytes_, expected):
     value = kit.read_uvarint(io.BytesIO(bytes_))
     assert value == expected
+
+
+def test_write_account_stats():
+    account_id, tanks = 3, [
+        {"tank_id": 270, "statistics": {"battles": 86942, "wins": 86941}},
+    ]
+    fp = io.BytesIO()
+    kit.write_account_stats(account_id, tanks, fp)
+    assert fp.getvalue() == b">>\x03\x01\x8E\x02\x9E\xA7\x05\x9D\xA7\x05"
