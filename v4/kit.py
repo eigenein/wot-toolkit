@@ -101,5 +101,25 @@ def exponential_backoff(minimum, maximum, factor, jitter):
             value = minimum
 
 
+def write_uvarint(value, fp):
+    """Writes unsigned varint value."""
+    while True:
+        value, byte = value >> 7, value & 0x7F
+        if value:
+            byte |= 0x80
+        fp.write(bytes((byte, )))
+        if not value:
+            break
+
+
+def read_uvarint(fp):
+    """Reads unsigned varint value."""
+    continue_, value, shift = True, 0, 0
+    while continue_:
+        byte = fp.read(1)[0]
+        continue_, value, shift = byte & 0x80, value | ((byte & 0x7F) << shift), shift + 7
+    return value
+
+
 if __name__ == "__main__":
     main()
