@@ -13,14 +13,20 @@ import click
 import requests
 
 
-@click.command()
-@click.option("--app-id", default="demo", help="application ID", metavar="<application ID>", show_default=True)
-@click.option("--start-id", default=1, help="start account ID", metavar="<account ID>", show_default=True, type=int)
-@click.option("--end-id", default=40000000, help="end account ID", metavar="<account ID>", show_default=True, type=int)
-@click.option("--log-file", default=sys.stderr, help="log file", metavar="<file>", type=click.File("wt"))
+@click.group()
+def main():
+    """Tankopoisk v4."""
+    pass
+
+
+@main.command()
+@click.option("--app-id", default="demo", help="Application ID.", metavar="<application ID>", show_default=True)
+@click.option("--start-id", default=1, help="Start account ID.", metavar="<account ID>", show_default=True, type=int)
+@click.option("--end-id", default=40000000, help="End account ID.", metavar="<account ID>", show_default=True, type=int)
+@click.option("--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
 @click.argument("output", type=click.File("wb"))
-def main(app_id, start_id, end_id, log_file, output):
-    """Gets account statistics dump."""
+def get(app_id, start_id, end_id, log_file, output):
+    """Get account statistics dump."""
     logging.basicConfig(format="%(asctime)s (%(module)s) %(levelname)s %(message)s", level=logging.INFO, stream=log_file)
 
     api, start_time = Api(app_id), time()
