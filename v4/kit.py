@@ -5,6 +5,7 @@ import itertools
 import logging
 import sys
 
+from datetime import timedelta
 from operator import itemgetter
 from time import sleep, time
 from random import normalvariate
@@ -29,12 +30,25 @@ def get(app_id, start_id, end_id, log_file, output):
     """Get account statistics dump."""
     logging.basicConfig(format="%(asctime)s (%(module)s) %(levelname)s %(message)s", level=logging.INFO, stream=log_file)
 
-    api, start_time = Api(app_id), time()
+    api = Api(app_id)
+    start_time, account_count, tank_count = time(), 0, 0
     for account_ids in chop(range(start_id, end_id), 100):
         account_tanks = sorted(api.account_tanks(account_ids), key=itemgetter(0))  # sort by account ID
+        for account_id, tanks in account_tanks:
+            write_account_stats(account_id, tanks, output)
+            tank_count += len(tanks)
+        account_count += len(account_tanks)
         # Print statistics.
-        aps = account_ids[-1] / (time() - start_time)
-        logging.info("#%d aps: %.1f apd: %.0f", account_ids[-1], aps, aps * 86400.0)
+        aps = (account_ids[-1] - start_id) / (time() - start_time)
+        logging.info(
+            "#%d (%d) tanks: %d | aps: %.1f | apd: %.0f",
+            account_ids[-1], account_count, tank_count, aps, aps * 86400.0,
+        )
+
+    logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
+    logging.info("Accounts: %d. Tanks: %d. Tanks per account: %.1f.", account_count, tank_count, tank_count / account_count)
+    logging.info("Dump size: %.1fMiB.", output.tell() / 1048576.0)
+    logging.info("%.0fB per account. %.1fB per tank.", output.tell() / account_count, output.tell() / tank_count)
 
 
 class Api:
@@ -71,7 +85,6 @@ class Api:
                 logging.warning("HTTP status: %d", response.status_code)
             logging.warning("sleep %.1fs", sleep_time)
             sleep(sleep_time)
-
 
     @staticmethod
     def make_account_id(account_ids):
