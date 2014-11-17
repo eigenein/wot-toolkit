@@ -46,9 +46,10 @@ def get(app_id, start_id, end_id, log_file, output):
         )
 
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
-    logging.info("Accounts: %d. Tanks: %d. Tanks per account: %.1f.", account_count, tank_count, tank_count / account_count)
     logging.info("Dump size: %.1fMiB.", output.tell() / 1048576.0)
-    logging.info("%.0fB per account. %.1fB per tank.", output.tell() / account_count, output.tell() / tank_count)
+    if account_count:
+        logging.info("Accounts: %d. Tanks: %d. Tanks per account: %.1f.", account_count, tank_count, tank_count / account_count)
+        logging.info("%.0fB per account. %.1fB per tank.", output.tell() / account_count, output.tell() / tank_count)
 
 
 class Api:
