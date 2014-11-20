@@ -95,12 +95,12 @@ class Api:
         params = dict(kwargs, application_id=self.app_id)
         backoff = exponential_backoff(0.1, 600.0, 2.0, 0.1)
         for sleep_time in backoff:
-            response = yield from aiohttp.request(
+            response = yield from asyncio.wait_for(aiohttp.request(
                 "GET",
                 "http://api.worldoftanks.ru/wot/%s/" % method,
                 params=params,
                 connector=self.connector,
-            )
+            ), 10.0)
             if response.status == http.client.OK:
                 json = yield from response.json()
                 if json["status"] == "ok":
