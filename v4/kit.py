@@ -17,6 +17,10 @@ import aiohttp
 import click
 
 
+MAX_ACCOUNTS_PER_REQUEST = 100
+MAX_PENDING_COUNT = 20
+
+
 @click.group()
 @click.option("--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
 def main(log_file):
@@ -41,11 +45,11 @@ def run_in_event_loop(func):
 def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
-    consumer = AccountTanksConsumer(start_id, output)
+    consumer = AccountTanksConsumer(start_id, output, MAX_PENDING_COUNT * MAX_ACCOUNTS_PER_REQUEST)
     pending = set()
     start_time = time()
     # Main loop.
-    for account_ids in chop(range(start_id, end_id + 1), 100):
+    for account_ids in chop(range(start_id, end_id + 1), MAX_ACCOUNTS_PER_REQUEST):
         pending.add(asyncio.async(api.account_tanks(account_ids)))
         if len(pending) < 4:
             continue
@@ -130,7 +134,7 @@ class Api:
 class AccountTanksConsumer:
     """Consumes results of account/tanks API requests."""
 
-    def __init__(self, start_id, output, buffer_size=400):
+    def __init__(self, start_id, output, buffer_size):
         self.expected_id = start_id
         self.output = output
         self.semaphore = asyncio.Semaphore(buffer_size)
