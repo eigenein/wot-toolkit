@@ -48,6 +48,7 @@ def get(app_id, start_id, end_id, output):
             (yield from api.account_tanks(account_ids)),
             key=itemgetter(0),
         )
+        # Write account stats.
         for account_id, tanks in account_tanks:
             write_account_stats(account_id, tanks, output)
             tank_count += len(tanks)
