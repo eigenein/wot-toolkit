@@ -47,10 +47,10 @@ def get(app_id, start_id, end_id, output):
     # Main loop.
     for account_ids in chop(range(start_id, end_id + 1), 100):
         pending.add(asyncio.async(api.account_tanks(account_ids)))
-        if len(pending) < 8:
+        if len(pending) < 4:
             continue
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        consumer.consume_all(done)
+        yield from consumer.consume_all(done)
         # Print runtime statistics.
         aps = (consumer.expected_id - start_id) / (time() - start_time)
         logging.info(
@@ -61,7 +61,7 @@ def get(app_id, start_id, end_id, output):
     logging.info("Finishing.")
     while pending:
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        consumer.consume_all(done)
+        yield from consumer.consume_all(done)
     assert not consumer.buffer, "there are buffered results left"
     # Print total statistics.
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
@@ -130,17 +130,20 @@ class Api:
 class AccountTanksConsumer:
     """Consumes results of account/tanks API requests."""
 
-    def __init__(self, start_id, output):
+    def __init__(self, start_id, output, buffer_size=400):
         self.expected_id = start_id
         self.output = output
+        self.semaphore = asyncio.Semaphore(buffer_size)
         self.buffer = {}
         self.account_count = 0
         self.tank_count = 0
 
+    @asyncio.coroutine
     def consume_all(self, tasks):
         for task in tasks:
-            self.consume(task.result())
+            yield from self.consume(task.result())
 
+    @asyncio.coroutine
     def consume(self, result):
         """Consumes request result."""
 
@@ -148,20 +151,20 @@ class AccountTanksConsumer:
         account_tanks = sorted(result, key=itemgetter(0))
         # Iterate through account stats.
         for account_id, tanks in account_tanks:
+            yield from self.semaphore.acquire()
             self.buffer[account_id] = tanks
             # Dump stored results.
             while self.expected_id in self.buffer:
                 # Pop expected result.
                 tanks = self.buffer.pop(self.expected_id)
+                self.semaphore.release()
                 if tanks:
                     write_account_stats(account_id, tanks, self.output)
+                    # Update stats.
+                    self.account_count += 1
+                    self.tank_count += len(tanks)
                 # Expect next account ID.
                 self.expected_id += 1
-            # Update tank stats.
-            if tanks:
-                self.tank_count += len(tanks)
-        # Update account stats.
-        self.account_count += len(account_tanks)
 
 
 def chop(iterable, length):
