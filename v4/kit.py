@@ -82,8 +82,9 @@ class Api:
             account_id=self.make_account_id(account_ids),
             fields="statistics,tank_id",
         )
+        # Return accounts tanks sorted by tank ID.
         return [
-            (int(account_id), sorted(tanks, key=itemgetter("tank_id")))  # sort by tank ID
+            (int(account_id), sorted(tanks, key=itemgetter("tank_id")))
             for account_id, tanks in data.items()
             if tanks
         ]
