@@ -41,30 +41,40 @@ def run_in_event_loop(func):
 def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
-    start_time, account_count, tank_count = time(), 0, 0
+    consumer = AccountTanksConsumer(output)
+    pending = set()
+    start_time = time()
+    # Main loop.
     for account_ids in chop(range(start_id, end_id + 1), 100):
-        # Sort by account ID.
-        account_tanks = sorted(
-            (yield from api.account_tanks(account_ids)),
-            key=itemgetter(0),
-        )
-        # Write account stats.
-        for account_id, tanks in account_tanks:
-            write_account_stats(account_id, tanks, output)
-            tank_count += len(tanks)
-        account_count += len(account_tanks)
-        # Print statistics.
-        aps = (account_ids[-1] - start_id) / (time() - start_time)
+        if len(pending) < 8:
+            pending.add(asyncio.async(api.account_tanks(account_ids)))
+            continue
+        done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        if not consumer.consume_all(done):
+            continue
+        # Print runtime statistics.
+        aps = (consumer.last_id - start_id) / (time() - start_time)
         logging.info(
             "#%d (%d) tanks: %d | aps: %.1f | apd: %.0f",
-            account_ids[-1], account_count, tank_count, aps, aps * 86400.0,
+            consumer.last_id, consumer.account_count, consumer.tank_count, aps, aps * 86400.0,
         )
-
+    # Let the last pending tasks finish.
+    while pending:
+        done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+        consumer.consume_all(done)
+    # Print total statistics.
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
     logging.info("Dump size: %.1fMiB.", output.tell() / 1048576.0)
-    if account_count:
-        logging.info("Accounts: %d. Tanks: %d. Tanks per account: %.1f.", account_count, tank_count, tank_count / account_count)
-        logging.info("%.0fB per account. %.1fB per tank.", output.tell() / account_count, output.tell() / tank_count)
+    if not consumer.account_count:
+        return
+    logging.info(
+        "Accounts: %d. Tanks: %d. Tanks per account: %.1f.",
+        consumer.account_count, consumer.tank_count, consumer.tank_count / consumer.account_count,
+    )
+    logging.info(
+        "%.0fB per account. %.1fB per tank.",
+        output.tell() / consumer.account_count, output.tell() / consumer.tank_count,
+    )
 
 
 class Api:
@@ -115,6 +125,29 @@ class Api:
     def make_account_id(account_ids):
         """Makes account_id value."""
         return ",".join(map(str, account_ids))
+
+
+class AccountTanksConsumer:
+    """Consumes results of account/tanks API requests."""
+
+    def __init__(self, output):
+        self.output = output
+        self.last_id = 0
+        self.account_count = 0
+        self.tank_count = 0
+
+    def consume_all(self, tasks):
+        for task in tasks:
+            self.consume(task.result())
+
+    def consume(self, result):
+        # Sort by account ID.
+        account_tanks = sorted(result, key=itemgetter(0))
+        # Write account stats.
+        for account_id, tanks in account_tanks:
+            write_account_stats(account_id, tanks, self.output)
+            self.tank_count += len(tanks)
+        self.account_count += len(account_tanks)
 
 
 def chop(iterable, length):
