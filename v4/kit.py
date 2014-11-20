@@ -42,7 +42,7 @@ def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
     start_time, account_count, tank_count = time(), 0, 0
-    for account_ids in chop(range(start_id, end_id), 100):
+    for account_ids in chop(range(start_id, end_id + 1), 100):
         # Sort by account ID.
         account_tanks = sorted(
             (yield from api.account_tanks(account_ids)),
