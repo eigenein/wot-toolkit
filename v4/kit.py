@@ -41,27 +41,28 @@ def run_in_event_loop(func):
 def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
-    consumer = AccountTanksConsumer(output)
+    consumer = AccountTanksConsumer(start_id, output)
     pending = set()
     start_time = time()
     # Main loop.
     for account_ids in chop(range(start_id, end_id + 1), 100):
+        pending.add(asyncio.async(api.account_tanks(account_ids)))
         if len(pending) < 8:
-            pending.add(asyncio.async(api.account_tanks(account_ids)))
             continue
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        if not consumer.consume_all(done):
-            continue
+        consumer.consume_all(done)
         # Print runtime statistics.
-        aps = (consumer.last_id - start_id) / (time() - start_time)
+        aps = (consumer.expected_id - start_id) / (time() - start_time)
         logging.info(
-            "#%d (%d) tanks: %d | aps: %.1f | apd: %.0f",
-            consumer.last_id, consumer.account_count, consumer.tank_count, aps, aps * 86400.0,
+            "#%d (%d) buffered: %d | tanks: %d | aps: %.1f | apd: %.0f",
+            consumer.expected_id, consumer.account_count, len(consumer.buffer), consumer.tank_count, aps, aps * 86400.0,
         )
     # Let the last pending tasks finish.
+    logging.info("Finishing.")
     while pending:
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
         consumer.consume_all(done)
+    assert not consumer.buffer, "there are buffered results left"
     # Print total statistics.
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
     logging.info("Dump size: %.1fMiB.", output.tell() / 1048576.0)
@@ -94,9 +95,8 @@ class Api:
         )
         # Return accounts tanks sorted by tank ID.
         return [
-            (int(account_id), sorted(tanks, key=itemgetter("tank_id")))
+            (int(account_id), sorted(tanks, key=itemgetter("tank_id")) if tanks else None)
             for account_id, tanks in data.items()
-            if tanks
         ]
 
     @asyncio.coroutine
@@ -130,9 +130,10 @@ class Api:
 class AccountTanksConsumer:
     """Consumes results of account/tanks API requests."""
 
-    def __init__(self, output):
+    def __init__(self, start_id, output):
+        self.expected_id = start_id
         self.output = output
-        self.last_id = 0
+        self.buffer = {}
         self.account_count = 0
         self.tank_count = 0
 
@@ -141,12 +142,24 @@ class AccountTanksConsumer:
             self.consume(task.result())
 
     def consume(self, result):
+        """Consumes request result."""
+
         # Sort by account ID.
         account_tanks = sorted(result, key=itemgetter(0))
-        # Write account stats.
+        # Iterate through account stats.
         for account_id, tanks in account_tanks:
-            write_account_stats(account_id, tanks, self.output)
-            self.tank_count += len(tanks)
+            self.buffer[account_id] = tanks
+            # Dump stored results.
+            while self.expected_id in self.buffer:
+                # Pop expected result.
+                tanks = self.buffer.pop(self.expected_id)
+                if tanks:
+                    write_account_stats(account_id, tanks, self.output)
+                    # Update tank stats.
+                    self.tank_count += len(tanks)
+                # Expect next account ID.
+                self.expected_id += 1
+        # Update account stats.
         self.account_count += len(account_tanks)
 
 
