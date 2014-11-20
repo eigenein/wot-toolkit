@@ -155,10 +155,11 @@ class AccountTanksConsumer:
                 tanks = self.buffer.pop(self.expected_id)
                 if tanks:
                     write_account_stats(account_id, tanks, self.output)
-                    # Update tank stats.
-                    self.tank_count += len(tanks)
                 # Expect next account ID.
                 self.expected_id += 1
+            # Update tank stats.
+            if tanks:
+                self.tank_count += len(tanks)
         # Update account stats.
         self.account_count += len(account_tanks)
 
