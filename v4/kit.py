@@ -1,39 +1,53 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import asyncio
+import http.client
 import itertools
 import logging
 import sys
 
 from datetime import timedelta
+from functools import wraps
 from operator import itemgetter
 from time import sleep, time
 from random import normalvariate
 
+import aiohttp
 import click
-import requests
 
 
 @click.group()
-def main():
+@click.option("--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
+def main(log_file):
     """Tankopoisk v4."""
-    pass
+    logging.basicConfig(format="%(asctime)s (%(module)s) %(levelname)s %(message)s", level=logging.INFO, stream=log_file)
+
+
+def run_in_event_loop(func):
+    """Async command decorator."""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        return asyncio.get_event_loop().run_until_complete(asyncio.coroutine(func)(*args, **kwargs))
+    return wrapper
 
 
 @main.command()
+@run_in_event_loop
 @click.option("--app-id", default="demo", help="Application ID.", metavar="<application ID>", show_default=True)
 @click.option("--start-id", default=1, help="Start account ID.", metavar="<account ID>", show_default=True, type=int)
 @click.option("--end-id", default=40000000, help="End account ID.", metavar="<account ID>", show_default=True, type=int)
-@click.option("--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
 @click.argument("output", type=click.File("wb"))
-def get(app_id, start_id, end_id, log_file, output):
+def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
-    logging.basicConfig(format="%(asctime)s (%(module)s) %(levelname)s %(message)s", level=logging.INFO, stream=log_file)
-
     api = Api(app_id)
     start_time, account_count, tank_count = time(), 0, 0
     for account_ids in chop(range(start_id, end_id), 100):
-        account_tanks = sorted(api.account_tanks(account_ids), key=itemgetter(0))  # sort by account ID
+        # Sort by account ID.
+        account_tanks = sorted(
+            (yield from api.account_tanks(account_ids)),
+            key=itemgetter(0),
+        )
         for account_id, tanks in account_tanks:
             write_account_stats(account_id, tanks, output)
             tank_count += len(tanks)
@@ -57,28 +71,31 @@ class Api:
 
     def __init__(self, app_id):
         self.app_id = app_id
-        self.session = requests.Session()
+        self.connector = aiohttp.TCPConnector(loop=asyncio.get_event_loop())
 
+    @asyncio.coroutine
     def account_tanks(self, account_ids):
         """Gets account tanks."""
-        data = self.make_request(
+        data = yield from self.make_request(
             "account/tanks",
             account_id=self.make_account_id(account_ids),
             fields="statistics,tank_id",
         )
-        for account_id, tanks in data.items():
-            if tanks:
-                # Sort by tank ID.
-                yield int(account_id), sorted(tanks, key=itemgetter("tank_id"))
+        return [
+            (int(account_id), sorted(tanks, key=itemgetter("tank_id")))  # sort by tank ID
+            for account_id, tanks in data.items()
+            if tanks
+        ]
 
+    @asyncio.coroutine
     def make_request(self, method, **kwargs):
         """Makes API request."""
         params = dict(kwargs, application_id=self.app_id)
         backoff = exponential_backoff(0.1, 600.0, 2.0, 0.1)
         for sleep_time in backoff:
-            response = self.session.get("http://api.worldoftanks.ru/wot/%s/" % method, params=params)
-            if response.status_code == requests.codes.ok:
-                json = response.json()
+            response = yield from aiohttp.request("GET", "http://api.worldoftanks.ru/wot/%s/" % method, params=params)
+            if response.status == http.client.OK:
+                json = yield from response.json()
                 if json["status"] == "ok":
                     return json["data"]
                 logging.warning("API error: %s", json["error"]["message"])
