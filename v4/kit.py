@@ -33,11 +33,11 @@ def run_in_event_loop(func):
 
 
 @main.command()
-@run_in_event_loop
 @click.option("--app-id", default="demo", help="Application ID.", metavar="<application ID>", show_default=True)
 @click.option("--start-id", default=1, help="Start account ID.", metavar="<account ID>", show_default=True, type=int)
 @click.option("--end-id", default=40000000, help="End account ID.", metavar="<account ID>", show_default=True, type=int)
 @click.argument("output", type=click.File("wb"))
+@run_in_event_loop
 def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
