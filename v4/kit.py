@@ -10,7 +10,7 @@ import sys
 from datetime import timedelta
 from functools import wraps
 from operator import itemgetter
-from time import sleep, time
+from time import time
 from random import normalvariate
 
 import aiohttp
@@ -72,7 +72,7 @@ class Api:
 
     def __init__(self, app_id):
         self.app_id = app_id
-        self.connector = aiohttp.TCPConnector(loop=asyncio.get_event_loop())
+        self.connector = aiohttp.TCPConnector()
 
     @asyncio.coroutine
     def account_tanks(self, account_ids):
@@ -104,7 +104,7 @@ class Api:
             else:
                 logging.warning("HTTP status: %d", response.status_code)
             logging.warning("sleep %.1fs", sleep_time)
-            sleep(sleep_time)
+            asyncio.sleep(sleep_time)
 
     @staticmethod
     def make_account_id(account_ids):
