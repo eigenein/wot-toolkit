@@ -60,11 +60,12 @@ def get(app_id, start_id, end_id, output):
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
         yield from consumer.consume_all(done)
         # Adapt concurrent request count.
-        if api.request_count >= AUTO_ADAPT_REQUEST_COUNT:
-            if api.request_limit_exceeded_count > max_pending_count:
-                max_pending_count = max(max_pending_count - 1, 1)
-                logging.warning("Concurrent request count is decreased to: %d.", max_pending_count)
-            elif api.request_limit_exceeded_count == 0:
+        if api.request_limit_exceeded_count > max_pending_count:
+            max_pending_count = max(max_pending_count - 1, 1)
+            logging.warning("Concurrent request count is decreased to: %d.", max_pending_count)
+            api.reset_error_rate()
+        elif api.request_count >= AUTO_ADAPT_REQUEST_COUNT:
+            if api.request_limit_exceeded_count == 0:
                 max_pending_count = min(max_pending_count + 1, MAX_PENDING_COUNT)
                 logging.info("Concurrent request count is increased to: %d.", max_pending_count)
             api.reset_error_rate()
