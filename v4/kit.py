@@ -17,11 +17,17 @@ import aiohttp
 import click
 
 
+# Limits.
+# ------------------------------------------------------------------------------
+
 AUTO_ADAPT_REQUEST_COUNT = 150
 MAX_ACCOUNTS_PER_REQUEST = 100
 MAX_BUFFER_SIZE = 10000
 MAX_PENDING_COUNT = 32
 
+
+# Entry point.
+# ------------------------------------------------------------------------------
 
 @click.group()
 @click.option("--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
@@ -37,6 +43,9 @@ def run_in_event_loop(func):
         return asyncio.get_event_loop().run_until_complete(asyncio.coroutine(func)(*args, **kwargs))
     return wrapper
 
+
+# Commands.
+# ------------------------------------------------------------------------------
 
 @main.command()
 @click.option("--app-id", default="demo", help="Application ID.", metavar="<application ID>", show_default=True)
@@ -98,6 +107,9 @@ def cat(input):
     """Print dump contents."""
     pass
 
+
+# API helper.
+# ------------------------------------------------------------------------------
 
 class Api:
     """Wargaming Public API interface."""
@@ -164,6 +176,9 @@ class Api:
         return ",".join(map(str, account_ids))
 
 
+# Buffering.
+# ------------------------------------------------------------------------------
+
 class AccountTanksConsumer:
     """Consumes results of account/tanks API requests."""
 
@@ -199,6 +214,9 @@ class AccountTanksConsumer:
                 # Expect next account ID.
                 self.expected_id += 1
 
+
+# Helpers.
+# ------------------------------------------------------------------------------
 
 def chop(iterable, length):
     """Splits iterable into chunks."""
@@ -236,6 +254,9 @@ def adapt_max_pending_count(api, max_pending_count):
     return max_pending_count
 
 
+# Serializing.
+# ------------------------------------------------------------------------------
+
 def write_uvarint(value, fp):
     """Writes unsigned varint value."""
     while True:
@@ -266,6 +287,9 @@ def write_account_stats(account_id, tanks, fp):
         write_uvarint(tank["statistics"]["battles"], fp)
         write_uvarint(tank["statistics"]["wins"], fp)
 
+
+# Entry point.
+# ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     main()
