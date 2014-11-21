@@ -18,7 +18,8 @@ import click
 
 
 MAX_ACCOUNTS_PER_REQUEST = 100
-MAX_PENDING_COUNT = 20
+MAX_PENDING_COUNT = 32
+AUTO_ADAPT_REQUEST_COUNT = 100
 
 
 @click.group()
@@ -46,15 +47,27 @@ def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
     consumer = AccountTanksConsumer(start_id, output, MAX_PENDING_COUNT * MAX_ACCOUNTS_PER_REQUEST)
+    max_pending_count = 4  # this is always acceptable
     pending = set()
     start_time = time()
     # Main loop.
     for account_ids in chop(range(start_id, end_id + 1), MAX_ACCOUNTS_PER_REQUEST):
+        # Schedule request.
         pending.add(asyncio.async(api.account_tanks(account_ids)))
-        if len(pending) < 4:
+        if len(pending) < max_pending_count:
             continue
+        # Wait for the first completed request and process it.
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
         yield from consumer.consume_all(done)
+        # Adapt concurrent request count.
+        if api.request_count >= AUTO_ADAPT_REQUEST_COUNT:
+            if api.request_limit_exceeded_count > max_pending_count:
+                max_pending_count = max(max_pending_count - 1, 1)
+                logging.warning("Concurrent request count is decreased to: %d.", max_pending_count)
+            elif api.request_limit_exceeded_count == 0:
+                max_pending_count = min(max_pending_count + 1, MAX_PENDING_COUNT)
+                logging.info("Concurrent request count is increased to: %d.", max_pending_count)
+            api.reset_error_rate()
         # Print runtime statistics.
         aps = (consumer.expected_id - start_id) / (time() - start_time)
         logging.info(
@@ -88,6 +101,10 @@ class Api:
     def __init__(self, app_id):
         self.app_id = app_id
         self.connector = aiohttp.TCPConnector()
+        self.reset_error_rate()
+
+    def reset_error_rate(self):
+        self.request_count = self.request_limit_exceeded_count = 0
 
     @asyncio.coroutine
     def account_tanks(self, account_ids):
@@ -109,21 +126,33 @@ class Api:
         params = dict(kwargs, application_id=self.app_id)
         backoff = exponential_backoff(0.1, 600.0, 2.0, 0.1)
         for sleep_time in backoff:
-            response = yield from asyncio.wait_for(aiohttp.request(
-                "GET",
-                "http://api.worldoftanks.ru/wot/%s/" % method,
-                params=params,
-                connector=self.connector,
-            ), 10.0)
-            if response.status == http.client.OK:
+            try:
+                response = yield from asyncio.wait_for(aiohttp.request(
+                    "GET",
+                    "http://api.worldoftanks.ru/wot/%s/" % method,
+                    params=params,
+                    connector=self.connector,
+                ), 10.0)
+            except asyncio.TimeoutError:
+                logging.warning("Timeout.")
+                response = None
+            except aiohttp.errors.ConnectionError:
+                logging.warning("Connection error.")
+                response = None
+            if response is None:
+                pass  # do nothing
+            elif response.status == http.client.OK:
+                self.request_count += 1
                 json = yield from response.json()
                 if json["status"] == "ok":
                     return json["data"]
+                if json["error"]["message"] == "REQUEST_LIMIT_EXCEEDED":
+                    self.request_limit_exceeded_count += 1
                 logging.warning("API error: %s", json["error"]["message"])
             else:
-                logging.warning("HTTP status: %d", response.status_code)
+                logging.error("HTTP status: %d", response.status_code)
             logging.warning("sleep %.1fs", sleep_time)
-            asyncio.sleep(sleep_time)
+            yield from asyncio.sleep(sleep_time)
 
     @staticmethod
     def make_account_id(account_ids):
