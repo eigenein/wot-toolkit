@@ -96,6 +96,13 @@ def get(app_id, start_id, end_id, output):
     )
 
 
+@main.command()
+@click.argument("input", type=click.File("rb"))
+def cat(input):
+    """Print dump contents."""
+    pass
+
+
 class Api:
     """Wargaming Public API interface."""
 
