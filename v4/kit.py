@@ -17,9 +17,10 @@ import aiohttp
 import click
 
 
-MAX_ACCOUNTS_PER_REQUEST = 100
-MAX_PENDING_COUNT = 32
 AUTO_ADAPT_REQUEST_COUNT = 150
+MAX_ACCOUNTS_PER_REQUEST = 100
+MAX_BUFFER_SIZE = 10000
+MAX_PENDING_COUNT = 32
 
 
 @click.group()
@@ -55,20 +56,15 @@ def get(app_id, start_id, end_id, output):
         # Schedule request.
         pending.add(asyncio.async(api.account_tanks(account_ids)))
         if len(pending) < max_pending_count:
-            continue
+            if len(consumer.buffer) < MAX_BUFFER_SIZE:
+                continue
+            else:
+                logging.warning("Maximum buffer size is reached.")
         # Wait for the first completed request and process it.
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
         yield from consumer.consume_all(done)
         # Adapt concurrent request count.
-        if api.request_limit_exceeded_count > max_pending_count:
-            max_pending_count = max(max_pending_count - 1, 1)
-            logging.warning("Concurrent request count is decreased to: %d.", max_pending_count)
-            api.reset_error_rate()
-        elif api.request_count >= AUTO_ADAPT_REQUEST_COUNT:
-            if api.request_limit_exceeded_count == 0:
-                max_pending_count = min(max_pending_count + 1, MAX_PENDING_COUNT)
-                logging.info("Concurrent request count is increased to: %d.", max_pending_count)
-            api.reset_error_rate()
+        max_pending_count = adapt_max_pending_count(api, max_pending_count)
         # Print runtime statistics.
         aps = (consumer.expected_id - start_id) / (time() - start_time)
         logging.info(
@@ -186,7 +182,6 @@ class AccountTanksConsumer:
     @asyncio.coroutine
     def consume(self, result):
         """Consumes request result."""
-
         # Sort by account ID.
         account_tanks = sorted(result, key=itemgetter(0))
         # Iterate through account stats.
@@ -225,6 +220,20 @@ def exponential_backoff(minimum, maximum, factor, jitter):
             value = maximum
         elif value < minimum:
             value = minimum
+
+
+def adapt_max_pending_count(api, max_pending_count):
+    """Adapt maximum pending request count basing on API error rate."""
+    if api.request_limit_exceeded_count > max_pending_count:
+        max_pending_count = max(max_pending_count - 1, 1)
+        logging.warning("Concurrent request count is decreased to: %d.", max_pending_count)
+        api.reset_error_rate()
+    elif api.request_count >= AUTO_ADAPT_REQUEST_COUNT:
+        if api.request_limit_exceeded_count == 0:
+            max_pending_count = min(max_pending_count + 1, MAX_PENDING_COUNT)
+            logging.info("Concurrent request count is increased to: %d.", max_pending_count)
+        api.reset_error_rate()
+    return max_pending_count
 
 
 def write_uvarint(value, fp):
