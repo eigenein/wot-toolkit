@@ -46,7 +46,7 @@ def run_in_event_loop(func):
 def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
-    consumer = AccountTanksConsumer(start_id, output, MAX_PENDING_COUNT * MAX_ACCOUNTS_PER_REQUEST)
+    consumer = AccountTanksConsumer(start_id, output)
     max_pending_count = 4  # this is always acceptable
     pending = set()
     start_time = time()
@@ -164,10 +164,9 @@ class Api:
 class AccountTanksConsumer:
     """Consumes results of account/tanks API requests."""
 
-    def __init__(self, start_id, output, buffer_size):
+    def __init__(self, start_id, output):
         self.expected_id = start_id
         self.output = output
-        self.semaphore = asyncio.Semaphore(buffer_size)
         self.buffer = {}
         self.account_count = 0
         self.tank_count = 0
@@ -185,13 +184,11 @@ class AccountTanksConsumer:
         account_tanks = sorted(result, key=itemgetter(0))
         # Iterate through account stats.
         for account_id, tanks in account_tanks:
-            yield from self.semaphore.acquire()
             self.buffer[account_id] = tanks
             # Dump stored results.
             while self.expected_id in self.buffer:
                 # Pop expected result.
                 tanks = self.buffer.pop(self.expected_id)
-                self.semaphore.release()
                 if tanks:
                     write_account_stats(account_id, tanks, self.output)
                     # Update stats.
