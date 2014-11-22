@@ -22,7 +22,7 @@ import click
 
 AUTO_ADAPT_REQUEST_COUNT = 150
 MAX_ACCOUNTS_PER_REQUEST = 100
-MAX_BUFFER_SIZE = 100
+MAX_BUFFER_SIZE = 10000
 MIN_PENDING_COUNT = 4
 MAX_PENDING_COUNT = 32
 
@@ -75,8 +75,9 @@ def get(app_id, start_id, end_id, output):
         # Print runtime statistics.
         aps = (consumer.expected_id - start_id) / (time() - start_time)
         logging.info(
-            "#%d (%d) buffered: %d | tanks: %d | aps: %.1f | apd: %.0f",
-            consumer.expected_id, consumer.account_count, len(consumer.buffer), consumer.tank_count, aps, aps * 86400.0,
+            "#%d (%d) buffer: %d/%d | tanks: %d | aps: %.1f | apd: %.0f",
+            consumer.expected_id, consumer.account_count, len(consumer.buffer), consumer.semaphore._value,
+            consumer.tank_count, aps, aps * 86400.0,
         )
     # Let the last pending tasks finish.
     logging.info("Finishing.")
@@ -123,7 +124,8 @@ class Api:
     @asyncio.coroutine
     def account_tanks(self, account_ids, semaphore):
         """Gets account tanks."""
-        yield from semaphore.acquire()
+        for _ in account_ids:
+            yield from semaphore.acquire()
         data = yield from self.make_request(
             "account/tanks",
             account_id=self.make_account_id(account_ids),
@@ -200,15 +202,13 @@ class AccountTanksConsumer:
         # Buffer account stats.
         for account_id, tanks in result:
             self.buffer[account_id] = tanks
-        # Check if we can dump something.
-        if self.expected_id not in self.buffer:
-            return
-        # Unblock other requests.
-        self.semaphore.release()
         # Dump stored results.
         while self.expected_id in self.buffer:
             # Pop expected result.
             tanks = self.buffer.pop(self.expected_id)
+            # Unblock other requests.
+            self.semaphore.release()
+            # Write account stats.
             if tanks:
                 write_account_stats(account_id, tanks, self.output)
                 # Update stats.
