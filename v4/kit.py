@@ -22,7 +22,7 @@ import click
 
 AUTO_ADAPT_REQUEST_COUNT = 150
 MAX_ACCOUNTS_PER_REQUEST = 100
-MAX_BUFFER_SIZE = 10000
+MAX_BUFFER_SIZE = 100
 MAX_PENDING_COUNT = 32
 
 
@@ -57,18 +57,15 @@ def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
     consumer = AccountTanksConsumer(start_id, output)
-    max_pending_count = 4  # this is always acceptable
+    max_pending_count = 4  # good count to start with
     pending = set()
     start_time = time()
     # Main loop.
     for account_ids in chop(range(start_id, end_id + 1), MAX_ACCOUNTS_PER_REQUEST):
-        # Schedule request.
-        pending.add(asyncio.async(api.account_tanks(account_ids)))
+        # Acquire buffer and schedule request.
+        pending.add(asyncio.async(api.account_tanks(account_ids, consumer.semaphore)))
         if len(pending) < max_pending_count:
-            if len(consumer.buffer) < MAX_BUFFER_SIZE:
-                continue
-            else:
-                logging.warning("Maximum buffer size is reached.")
+            continue
         # Wait for the first completed request and process it.
         done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
         yield from consumer.consume_all(done)
@@ -123,8 +120,9 @@ class Api:
         self.request_count = self.request_limit_exceeded_count = 0
 
     @asyncio.coroutine
-    def account_tanks(self, account_ids):
+    def account_tanks(self, account_ids, semaphore):
         """Gets account tanks."""
+        yield from semaphore.acquire()
         data = yield from self.make_request(
             "account/tanks",
             account_id=self.make_account_id(account_ids),
@@ -185,6 +183,7 @@ class AccountTanksConsumer:
     def __init__(self, start_id, output):
         self.expected_id = start_id
         self.output = output
+        self.semaphore = asyncio.Semaphore(MAX_BUFFER_SIZE)
         self.buffer = {}
         self.account_count = 0
         self.tank_count = 0
@@ -197,22 +196,25 @@ class AccountTanksConsumer:
     @asyncio.coroutine
     def consume(self, result):
         """Consumes request result."""
-        # Sort by account ID.
-        account_tanks = sorted(result, key=itemgetter(0))
-        # Iterate through account stats.
-        for account_id, tanks in account_tanks:
+        # Buffer account stats.
+        for account_id, tanks in result:
             self.buffer[account_id] = tanks
-            # Dump stored results.
-            while self.expected_id in self.buffer:
-                # Pop expected result.
-                tanks = self.buffer.pop(self.expected_id)
-                if tanks:
-                    write_account_stats(account_id, tanks, self.output)
-                    # Update stats.
-                    self.account_count += 1
-                    self.tank_count += len(tanks)
-                # Expect next account ID.
-                self.expected_id += 1
+        # Check if we can dump something.
+        if self.expected_id not in self.buffer:
+            return
+        # Unblock other requests.
+        self.semaphore.release()
+        # Dump stored results.
+        while self.expected_id in self.buffer:
+            # Pop expected result.
+            tanks = self.buffer.pop(self.expected_id)
+            if tanks:
+                write_account_stats(account_id, tanks, self.output)
+                # Update stats.
+                self.account_count += 1
+                self.tank_count += len(tanks)
+            # Expect next account ID.
+            self.expected_id += 1
 
 
 # Helpers.
