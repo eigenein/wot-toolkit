@@ -23,6 +23,7 @@ import click
 AUTO_ADAPT_REQUEST_COUNT = 150
 MAX_ACCOUNTS_PER_REQUEST = 100
 MAX_BUFFER_SIZE = 100
+MIN_PENDING_COUNT = 4
 MAX_PENDING_COUNT = 32
 
 
@@ -57,7 +58,7 @@ def get(app_id, start_id, end_id, output):
     """Get account statistics dump."""
     api = Api(app_id)
     consumer = AccountTanksConsumer(start_id, output)
-    max_pending_count = 4  # good count to start with
+    max_pending_count = MIN_PENDING_COUNT
     pending = set()
     start_time = time()
     # Main loop.
@@ -245,7 +246,7 @@ def exponential_backoff(minimum, maximum, factor, jitter):
 def adapt_max_pending_count(api, max_pending_count):
     """Adapt maximum pending request count basing on API error rate."""
     if api.request_limit_exceeded_count > max_pending_count:
-        max_pending_count = max(max_pending_count - 1, 1)
+        max_pending_count = max(max_pending_count - 1, MIN_PENDING_COUNT)
         logging.warning("Concurrent request count is decreased to: %d.", max_pending_count)
         api.reset_error_rate()
     elif api.request_count >= AUTO_ADAPT_REQUEST_COUNT:
