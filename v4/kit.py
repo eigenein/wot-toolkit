@@ -73,6 +73,7 @@ def get(app_id, start_id, end_id, output):
         else:
             logging.warning("Maximum buffer size is reached.")
             done, pending = yield from asyncio.wait(pending, return_when=asyncio.ALL_COMPLETED)
+        # Process results.
         consumer.consume_all(done)
         # Adapt concurrent request count.
         max_pending_count = adapt_max_pending_count(api, max_pending_count)
