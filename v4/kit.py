@@ -85,13 +85,14 @@ def get(app_id, start_id, end_id, output):
         )
     # Let the last pending tasks finish.
     logging.info("Finishing.")
-    while pending:
-        done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        yield from consumer.consume_all(done)
+    if pending:
+        done, _ = yield from asyncio.wait(pending)
+        consumer.consume_all(done)
     assert not consumer.buffer, "there are buffered results left"
     # Print total statistics.
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
     logging.info("Dump size: %.1fMiB.", output.tell() / 1048576.0)
+    logging.info("Last existing ID: %d.", consumer.last_existing_id)
     if not consumer.account_count:
         return
     logging.info(
@@ -191,6 +192,7 @@ class AccountTanksConsumer:
         self.buffer = {}
         self.account_count = 0
         self.tank_count = 0
+        self.last_existing_id = None
 
     def consume_all(self, tasks):
         for task in tasks:
@@ -207,10 +209,11 @@ class AccountTanksConsumer:
             tanks = self.buffer.pop(self.expected_id)
             # Write account stats.
             if tanks:
-                write_account_stats(account_id, tanks, self.output)
+                write_account_stats(self.expected_id, tanks, self.output)
                 # Update stats.
                 self.account_count += 1
                 self.tank_count += len(tanks)
+                self.last_existing_id = account_id
             # Expect next account ID.
             self.expected_id += 1
 
