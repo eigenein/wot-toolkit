@@ -106,10 +106,16 @@ def get(app_id, start_id, end_id, output):
 
 
 @main.command()
-@click.argument("input", type=click.File("rb"))
-def cat(input):
+@click.argument("input_", type=click.File("rb"))
+def cat(input_):
     """Print dump contents."""
-    pass
+    while True:
+        stats = read_account_stats(input_)
+        if not stats:
+            break  # end of file
+        account_id, tanks = stats
+        for tank in tanks:
+            print(account_id, *tank)
 
 
 # API helper.
@@ -213,7 +219,7 @@ class AccountTanksConsumer:
                 # Update stats.
                 self.account_count += 1
                 self.tank_count += len(tanks)
-                self.last_existing_id = account_id
+                self.last_existing_id = self.expected_id
             # Expect next account ID.
             self.expected_id += 1
 
@@ -257,7 +263,7 @@ def adapt_max_pending_count(api, max_pending_count):
     return max_pending_count
 
 
-# Serializing.
+# Serialization.
 # ------------------------------------------------------------------------------
 
 def write_uvarint(value, fp):
@@ -280,6 +286,12 @@ def read_uvarint(fp):
     return value
 
 
+def read_uvarints(count, fp):
+    """Reads several uvarints at once."""
+    for _ in range(count):
+        yield read_uvarint(fp)
+
+
 def write_account_stats(account_id, tanks, fp):
     """Writes account stats into file."""
     fp.write(b">>")
@@ -289,6 +301,15 @@ def write_account_stats(account_id, tanks, fp):
         write_uvarint(tank["tank_id"], fp)
         write_uvarint(tank["statistics"]["battles"], fp)
         write_uvarint(tank["statistics"]["wins"], fp)
+
+
+def read_account_stats(fp):
+    """Reads account stats from file."""
+    if not fp.read(2):
+        return  # end of file
+    account_id = read_uvarint(fp)
+    tank_count = read_uvarint(fp)
+    return account_id, [tuple(read_uvarints(3, fp)) for _ in range(tank_count)]
 
 
 # Entry point.
