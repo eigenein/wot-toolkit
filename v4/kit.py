@@ -67,7 +67,7 @@ def get(app_id, start_id, end_id, output):
         pending.add(asyncio.async(api.account_tanks(account_ids)))
         if len(pending) < max_pending_count:
             continue
-        # Wait for the request completion and process results.
+        # Wait for the request completion.
         if len(consumer.buffer) < MAX_BUFFER_SIZE:
             done, pending = yield from asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
         else:
