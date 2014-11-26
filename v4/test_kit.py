@@ -46,3 +46,8 @@ def test_write_account_stats():
 def test_read_account_stats():
     fp = io.BytesIO(b">>\x03\x01\x8E\x02\x9E\xA7\x05\x9D\xA7\x05")
     assert kit.read_account_stats(fp) == (3, [(270, 86942, 86941)])
+
+
+def test_enumerate_tanks():
+    fp = io.BytesIO(b">>\x03\x01\x8E\x02\x9E\xA7\x05\x9D\xA7\x05")
+    assert list(kit.enumerate_tanks(fp)) == [(3, 270, 86942, 86941)]

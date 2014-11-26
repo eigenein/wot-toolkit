@@ -118,6 +118,14 @@ def cat(input_):
             print(account_id, *tank)
 
 
+@main.command
+@click.argument("old", type=click.File("rb"))
+@click.argument("new", type=click.File("rb"))
+@click.argument("output", type=click.File("wb"))
+def diff(old, new, output):
+    pass
+
+
 # API helper.
 # ------------------------------------------------------------------------------
 
@@ -310,6 +318,18 @@ def read_account_stats(fp):
     account_id = read_uvarint(fp)
     tank_count = read_uvarint(fp)
     return account_id, [tuple(read_uvarints(3, fp)) for _ in range(tank_count)]
+
+
+def enumerate_tanks(fp):
+    """Reads all tanks from file."""
+    while True:
+        stats = read_account_stats(fp)
+        if not stats:
+            return
+        account_id, tanks = stats
+        for tank in tanks:
+            tank_id, battles, wins = tank
+            yield account_id, tank_id, battles, wins
 
 
 # Entry point.
