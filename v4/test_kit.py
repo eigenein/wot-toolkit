@@ -45,9 +45,31 @@ def test_write_account_stats():
 
 def test_read_account_stats():
     fp = io.BytesIO(b">>\x03\x01\x8E\x02\x9E\xA7\x05\x9D\xA7\x05")
-    assert kit.read_account_stats(fp) == (3, [(270, 86942, 86941)])
+    assert kit.read_account_stats(fp) == (3, [kit.Tank(270, 86942, 86941)])
 
 
 def test_enumerate_tanks():
     fp = io.BytesIO(b">>\x03\x01\x8E\x02\x9E\xA7\x05\x9D\xA7\x05")
-    assert list(kit.enumerate_tanks(fp)) == [(3, 270, 86942, 86941)]
+    assert list(kit.enumerate_tanks(fp)) == [kit.AccountTank(3, 270, 86942, 86941)]
+
+
+def test_enumerate_diff():
+    old = [
+        kit.AccountTank(1, 1, 10, 5),
+        kit.AccountTank(1, 3, 2, 1),
+        kit.AccountTank(2, 4, 1, 0),
+    ]
+    new = [
+        kit.AccountTank(1, 2, 12, 6),
+        kit.AccountTank(1, 3, 3, 2),
+        kit.AccountTank(2, 4, 1, 0),
+        kit.AccountTank(2, 5, 1, 0),
+    ]
+    expected = [
+        (kit.DiffTag.deleted, kit.AccountTank(1, 1, 10, 5)),
+        (kit.DiffTag.new, kit.AccountTank(1, 2, 12, 6)),
+        (kit.DiffTag.changed, kit.AccountTank(1, 3, 1, 1)),
+        (kit.DiffTag.not_changed, kit.AccountTank(2, 4, 1, 0)),
+        (kit.DiffTag.new, kit.AccountTank(2, 5, 1, 0)),
+    ]
+    assert list(kit.enumerate_diff(old, new)) == expected

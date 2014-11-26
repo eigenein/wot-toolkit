@@ -2,6 +2,8 @@
 # coding: utf-8
 
 import asyncio
+import collections
+import enum
 import http.client
 import itertools
 import logging
@@ -235,15 +237,6 @@ class AccountTanksConsumer:
 # Helpers.
 # ------------------------------------------------------------------------------
 
-def chop(iterable, length):
-    """Splits iterable into chunks."""
-    iterable = iter(iterable)
-    while True:
-        chunk = list(itertools.islice(iterable, length))
-        if not chunk:
-            break
-        yield chunk
-
 
 def exponential_backoff(minimum, maximum, factor, jitter):
     """Exponential Backoff Algorithm."""
@@ -317,7 +310,20 @@ def read_account_stats(fp):
         return  # end of file
     account_id = read_uvarint(fp)
     tank_count = read_uvarint(fp)
-    return account_id, [tuple(read_uvarints(3, fp)) for _ in range(tank_count)]
+    return account_id, [Tank(*read_uvarints(3, fp)) for _ in range(tank_count)]
+
+
+# Enumeration.
+# ------------------------------------------------------------------------------
+
+Tank = collections.namedtuple("Tank", "tank_id battles wins")
+DiffTag = enum.Enum("DiffTag", "new deleted changed not_changed")
+
+
+class AccountTank(collections.namedtuple("AccountTank", "account_id tank_id battles wins")):
+
+    def key(self):
+        return (self.account_id, self.tank_id)
 
 
 def enumerate_tanks(fp):
@@ -329,7 +335,43 @@ def enumerate_tanks(fp):
         account_id, tanks = stats
         for tank in tanks:
             tank_id, battles, wins = tank
-            yield account_id, tank_id, battles, wins
+            yield AccountTank(account_id, tank_id, battles, wins)
+
+
+def enumerate_diff(old_iterator, new_iterator):
+    """Generates diff entries."""
+    old_iterator, new_iterator = iter(old_iterator), iter(new_iterator)
+    old, new = safe_next(old_iterator), safe_next(new_iterator)
+    while old or new:
+        if not new or (old and old.key() < new.key()):
+            yield DiffTag.deleted, old
+            old = safe_next(old_iterator)
+        elif not old or (new and new.key() < old.key()):
+            yield DiffTag.new, new
+            new = safe_next(new_iterator)
+        else:
+            if new.battles <= old.battles:
+                yield DiffTag.not_changed, new
+            else:
+                yield DiffTag.changed, AccountTank(new.account_id, new.tank_id, new.battles - old.battles, new.wins - old.wins)
+            old, new = safe_next(old_iterator), safe_next(new_iterator)
+
+
+def chop(iterable, length):
+    """Splits iterable into chunks."""
+    iterable = iter(iterable)
+    while True:
+        chunk = list(itertools.islice(iterable, length))
+        if not chunk:
+            break
+        yield chunk
+
+
+def safe_next(iterator):
+    try:
+        return next(iterator)
+    except StopIteration:
+        return None
 
 
 # Entry point.
