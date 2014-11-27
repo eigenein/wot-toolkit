@@ -33,7 +33,7 @@ MAX_PENDING_COUNT = 32
 # ------------------------------------------------------------------------------
 
 @click.group()
-@click.option("--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
+@click.option("-l", "--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
 def main(log_file):
     """Tankopoisk v4."""
     logging.basicConfig(format="%(asctime)s (%(module)s) %(levelname)s %(message)s", level=logging.INFO, stream=log_file)
