@@ -36,7 +36,7 @@ def test_read_uvarints():
 
 def test_write_account_stats():
     account_id, tanks = 3, [
-        {"tank_id": 270, "statistics": {"battles": 86942, "wins": 86941}},
+        kit.Tank(270, 86942, 86941),
     ]
     fp = io.BytesIO()
     kit.write_account_stats(account_id, tanks, fp)
@@ -66,10 +66,8 @@ def test_enumerate_diff():
         kit.AccountTank(2, 5, 1, 0),
     ]
     expected = [
-        (kit.DiffTag.deleted, kit.AccountTank(1, 1, 10, 5)),
-        (kit.DiffTag.new, kit.AccountTank(1, 2, 12, 6)),
-        (kit.DiffTag.changed, kit.AccountTank(1, 3, 1, 1)),
-        (kit.DiffTag.not_changed, kit.AccountTank(2, 4, 1, 0)),
-        (kit.DiffTag.new, kit.AccountTank(2, 5, 1, 0)),
+        kit.AccountTank(1, 2, 12, 6),
+        kit.AccountTank(1, 3, 1, 1),
+        kit.AccountTank(2, 5, 1, 0),
     ]
     assert list(kit.enumerate_diff(old, new)) == expected

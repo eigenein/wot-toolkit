@@ -3,7 +3,6 @@
 
 import asyncio
 import collections
-import enum
 import http.client
 import itertools
 import logging
@@ -11,7 +10,7 @@ import sys
 
 from datetime import timedelta
 from functools import wraps
-from operator import itemgetter
+from operator import attrgetter, itemgetter
 from time import time
 from random import normalvariate
 
@@ -94,7 +93,7 @@ def get(app_id, start_id, end_id, output):
     # Print total statistics.
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
     logging.info("Dump size: %.1fMiB.", output.tell() / 1048576.0)
-    logging.info("Last existing ID: %d.", consumer.last_existing_id)
+    logging.info("Last existing ID: %s.", consumer.last_existing_id)
     if not consumer.account_count:
         return
     logging.info(
@@ -120,12 +119,25 @@ def cat(input_):
             print(account_id, *tank)
 
 
-@main.command
+@main.command()
 @click.argument("old", type=click.File("rb"))
 @click.argument("new", type=click.File("rb"))
 @click.argument("output", type=click.File("wb"))
 def diff(old, new, output):
-    pass
+    """Make difference dump of two dumps."""
+    old_stats, new_stats = enumerate_tanks(old), enumerate_tanks(new)
+    diff_stats = enumerate_diff(old_stats, new_stats)
+    tank_count = 0
+
+    for i, (account_id, tanks) in enumerate(itertools.groupby(diff_stats, attrgetter("account_id"))):
+        if i % 100 == 0:
+            logging.info(
+                "#%d | old: %.1fMiB | new: %.1fMiB | tanks: %d",
+                i, old.tell() / 1048576.0, new.tell() / 1048576.0, tank_count,
+            )
+        tank_count += write_account_stats(account_id, tanks, output)
+
+    logging.info("Tanks: %d.", tank_count)
 
 
 # API helper.
@@ -225,13 +237,18 @@ class AccountTanksConsumer:
             tanks = self.buffer.pop(self.expected_id)
             # Write account stats.
             if tanks:
-                write_account_stats(self.expected_id, tanks, self.output)
+                write_account_stats(self.expected_id, map(self.to_tank_instance, tanks), self.output)
                 # Update stats.
                 self.account_count += 1
                 self.tank_count += len(tanks)
                 self.last_existing_id = self.expected_id
             # Expect next account ID.
             self.expected_id += 1
+
+    @staticmethod
+    def to_tank_instance(tank):
+        """Makes Tank instance from JSON tank entry."""
+        return Tank(tank["tank_id"], tank["statistics"]["battles"], tank["statistics"]["wins"])
 
 
 # Helpers.
@@ -295,13 +312,15 @@ def read_uvarints(count, fp):
 
 def write_account_stats(account_id, tanks, fp):
     """Writes account stats into file."""
+    tanks = list(tanks)
     fp.write(b">>")
     write_uvarint(account_id, fp)
     write_uvarint(len(tanks), fp)
     for tank in tanks:
-        write_uvarint(tank["tank_id"], fp)
-        write_uvarint(tank["statistics"]["battles"], fp)
-        write_uvarint(tank["statistics"]["wins"], fp)
+        write_uvarint(tank.tank_id, fp)
+        write_uvarint(tank.battles, fp)
+        write_uvarint(tank.wins, fp)
+    return len(tanks)
 
 
 def read_account_stats(fp):
@@ -317,7 +336,6 @@ def read_account_stats(fp):
 # ------------------------------------------------------------------------------
 
 Tank = collections.namedtuple("Tank", "tank_id battles wins")
-DiffTag = enum.Enum("DiffTag", "new deleted changed not_changed")
 
 
 class AccountTank(collections.namedtuple("AccountTank", "account_id tank_id battles wins")):
@@ -344,16 +362,13 @@ def enumerate_diff(old_iterator, new_iterator):
     old, new = safe_next(old_iterator), safe_next(new_iterator)
     while old or new:
         if not new or (old and old.key() < new.key()):
-            yield DiffTag.deleted, old
             old = safe_next(old_iterator)
         elif not old or (new and new.key() < old.key()):
-            yield DiffTag.new, new
+            yield new
             new = safe_next(new_iterator)
         else:
-            if new.battles <= old.battles:
-                yield DiffTag.not_changed, new
-            else:
-                yield DiffTag.changed, AccountTank(new.account_id, new.tank_id, new.battles - old.battles, new.wins - old.wins)
+            if new.battles > old.battles:
+                yield AccountTank(new.account_id, new.tank_id, new.battles - old.battles, new.wins - old.wins)
             old, new = safe_next(old_iterator), safe_next(new_iterator)
 
 
