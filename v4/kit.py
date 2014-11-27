@@ -136,7 +136,7 @@ def diff(old, new, output):
     old_stats, new_stats = enumerate_tanks(old), enumerate_tanks(new)
     diff_stats = enumerate_diff(old_stats, new_stats)
 
-    tank_count = 0
+    account_count = tank_count = 0
     start_time = time()
 
     for i, (account_id, tanks) in enumerate(itertools.groupby(diff_stats, attrgetter("account_id"))):
@@ -144,12 +144,13 @@ def diff(old, new, output):
             new_position = new.tell() / MB
             speed = new_position * 60.0 / (time() - start_time)
             logging.info(
-                "#%d | old: %.1fMiB | new: %.1fMiB | tanks: %d | %.1f MiB/min | eta: %.1f min",
-                i, old.tell() / MB, new_position, tank_count, speed, (new_size - new_position) / speed,
+                "#%d | old: %.1fMiB | new: %.1fMiB | acc: %d | tanks: %d | %.1f MiB/min | eta: %.1f min",
+                i, old.tell() / MB, new_position, account_count, tank_count, speed, (new_size - new_position) / speed,
             )
         tank_count += write_account_stats(account_id, tanks, output)
+        account_count += 1
 
-    logging.info("Tanks: %d.", tank_count)
+    logging.info("Accounts: %d. Tanks: %d.", account_count, tank_count)
 
 
 # API helper.
