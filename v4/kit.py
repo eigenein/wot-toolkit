@@ -144,7 +144,7 @@ def diff(old, new, output):
             new_position = new.tell() / MB
             speed = new_position * 60.0 / (time() - start_time)
             logging.info(
-                "#%d | old: %.1fMiB | new: %.1fMiB | tanks: %d | %.0f MiB/min | eta: %.1f min",
+                "#%d | old: %.1fMiB | new: %.1fMiB | tanks: %d | %.1f MiB/min | eta: %.1f min",
                 i, old.tell() / MB, new_position, tank_count, speed, (new_size - new_position) / speed,
             )
         tank_count += write_account_stats(account_id, tanks, output)
@@ -356,6 +356,23 @@ class AccountTank(collections.namedtuple("AccountTank", "account_id tank_id batt
         return (self.account_id, self.tank_id)
 
 
+def chop(iterable, length):
+    """Splits iterable into chunks."""
+    iterable = iter(iterable)
+    while True:
+        chunk = list(itertools.islice(iterable, length))
+        if not chunk:
+            break
+        yield chunk
+
+
+def safe_next(iterator):
+    try:
+        return next(iterator)
+    except StopIteration:
+        return None
+
+
 def enumerate_tanks(fp):
     """Reads all tanks from file."""
     while True:
@@ -382,23 +399,6 @@ def enumerate_diff(old_iterator, new_iterator):
             if new.battles > old.battles:
                 yield AccountTank(new.account_id, new.tank_id, new.battles - old.battles, new.wins - old.wins)
             old, new = safe_next(old_iterator), safe_next(new_iterator)
-
-
-def chop(iterable, length):
-    """Splits iterable into chunks."""
-    iterable = iter(iterable)
-    while True:
-        chunk = list(itertools.islice(iterable, length))
-        if not chunk:
-            break
-        yield chunk
-
-
-def safe_next(iterator):
-    try:
-        return next(iterator)
-    except StopIteration:
-        return None
 
 
 # Entry point.
