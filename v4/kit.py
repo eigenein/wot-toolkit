@@ -6,6 +6,7 @@ import collections
 import http.client
 import itertools
 import logging
+import os
 import sys
 
 from datetime import timedelta
@@ -48,6 +49,9 @@ def run_in_event_loop(func):
 
 # Commands.
 # ------------------------------------------------------------------------------
+
+MB = 1048576.0
+
 
 @main.command()
 @click.option("--app-id", default="demo", help="Application ID.", metavar="<application ID>", show_default=True)
@@ -92,7 +96,7 @@ def get(app_id, start_id, end_id, output):
     assert not consumer.buffer, "there are buffered results left"
     # Print total statistics.
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
-    logging.info("Dump size: %.1fMiB.", output.tell() / 1048576.0)
+    logging.info("Dump size: %.1fMiB.", output.tell() / MB)
     logging.info("Last existing ID: %s.", consumer.last_existing_id)
     if not consumer.account_count:
         return
@@ -125,17 +129,23 @@ def cat(input_):
 @click.argument("output", type=click.File("wb"))
 def diff(old, new, output):
     """Make difference dump of two dumps."""
+    new.seek(0, os.SEEK_END)
+    new_size = new.tell() / MB
+    new.seek(0, os.SEEK_SET)
+
     old_stats, new_stats = enumerate_tanks(old), enumerate_tanks(new)
     diff_stats = enumerate_diff(old_stats, new_stats)
+
     tank_count = 0
     start_time = time()
 
     for i, (account_id, tanks) in enumerate(itertools.groupby(diff_stats, attrgetter("account_id"))):
         if i % 100 == 0:
-            new_position = new.tell() / 1048576.0
+            new_position = new.tell() / MB
+            speed = new_position * 60.0 / (time() - start_time)
             logging.info(
-                "#%d | old: %.1fMiB | new: %.1fMiB | tanks: %d | %.0f MiB/min",
-                i, old.tell() / 1048576.0, new_position, tank_count, new_position * 60.0 / (time() - start_time),
+                "#%d | old: %.1fMiB | new: %.1fMiB | tanks: %d | %.0f MiB/min | eta: %.1f min",
+                i, old.tell() / MB, new_position, tank_count, speed, (new_size - new_position) / speed,
             )
         tank_count += write_account_stats(account_id, tanks, output)
 
