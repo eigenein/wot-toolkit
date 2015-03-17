@@ -197,8 +197,8 @@ class Api:
             except asyncio.TimeoutError:
                 logging.warning("Timeout.")
                 response = None
-            except aiohttp.errors.ConnectionError:
-                logging.warning("Connection error.")
+            except aiohttp.errors.ClientError:
+                logging.warning("Client error.")
                 response = None
             if response is None:
                 pass  # do nothing
