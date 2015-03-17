@@ -59,7 +59,7 @@ MB = 1048576.0
 @click.option("--end-id", default=40000000, help="End account ID.", metavar="<account ID>", show_default=True, type=int)
 @click.argument("output", type=click.File("wb"))
 @run_in_event_loop
-def get(app_id, start_id, end_id, output):
+def get(app_id: str, start_id: int, end_id: int, output):
     """Get account statistics dump."""
     api = Api(app_id)
     consumer = AccountTanksConsumer(start_id, output)
@@ -159,7 +159,7 @@ def diff(old, new, output):
 class Api:
     """Wargaming Public API interface."""
 
-    def __init__(self, app_id):
+    def __init__(self, app_id: str):
         self.app_id = app_id
         self.connector = aiohttp.TCPConnector()
         self.reset_error_rate()
@@ -182,7 +182,7 @@ class Api:
         ]
 
     @asyncio.coroutine
-    def make_request(self, method, **kwargs):
+    def make_request(self, method: str, **kwargs):
         """Makes API request."""
         params = dict(kwargs, application_id=self.app_id)
         backoff = exponential_backoff(0.1, 600.0, 2.0, 0.1)
@@ -216,7 +216,7 @@ class Api:
             yield from asyncio.sleep(sleep_time)
 
     @staticmethod
-    def make_account_id(account_ids):
+    def make_account_id(account_ids) -> str:
         """Makes account_id value."""
         return ",".join(map(str, account_ids))
 
@@ -227,7 +227,7 @@ class Api:
 class AccountTanksConsumer:
     """Consumes results of account/tanks API requests."""
 
-    def __init__(self, start_id, output):
+    def __init__(self, start_id: int, output):
         self.expected_id = start_id
         self.output = output
         self.buffer = {}
@@ -259,7 +259,7 @@ class AccountTanksConsumer:
             self.expected_id += 1
 
     @staticmethod
-    def to_tank_instance(tank):
+    def to_tank_instance(tank: dict):
         """Makes Tank instance from JSON tank entry."""
         return Tank(tank["tank_id"], tank["statistics"]["battles"], tank["statistics"]["wins"])
 
@@ -268,7 +268,7 @@ class AccountTanksConsumer:
 # ------------------------------------------------------------------------------
 
 
-def exponential_backoff(minimum, maximum, factor, jitter):
+def exponential_backoff(minimum: float, maximum: float, factor: float, jitter: float):
     """Exponential Backoff Algorithm."""
     value = minimum
     while True:
@@ -280,7 +280,7 @@ def exponential_backoff(minimum, maximum, factor, jitter):
             value = minimum
 
 
-def adapt_max_pending_count(api, max_pending_count):
+def adapt_max_pending_count(api: Api, max_pending_count: int) -> int:
     """Adapt maximum pending request count basing on API error rate."""
     if api.request_limit_exceeded_count > max_pending_count:
         max_pending_count = max(max_pending_count - 1, MIN_PENDING_COUNT)
@@ -297,7 +297,7 @@ def adapt_max_pending_count(api, max_pending_count):
 # Serialization.
 # ------------------------------------------------------------------------------
 
-def write_uvarint(value, fp):
+def write_uvarint(value: int, fp):
     """Writes unsigned varint value."""
     while True:
         value, byte = value >> 7, value & 0x7F
@@ -308,7 +308,7 @@ def write_uvarint(value, fp):
             break
 
 
-def read_uvarint(fp):
+def read_uvarint(fp) -> int:
     """Reads unsigned varint value."""
     continue_, value, shift = True, 0, 0
     while continue_:
@@ -323,7 +323,7 @@ def read_uvarints(count, fp):
         yield read_uvarint(fp)
 
 
-def write_account_stats(account_id, tanks, fp):
+def write_account_stats(account_id: int, tanks, fp):
     """Writes account stats into file."""
     tanks = list(tanks)
     fp.write(b">>")
