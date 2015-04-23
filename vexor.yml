@@ -5,4 +5,3 @@ before_script: pip install pytest flake8
 script:
 - flake8 --show-source --max-line-length 120 .
 - py.test -v
-

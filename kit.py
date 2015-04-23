@@ -35,8 +35,12 @@ MAX_PENDING_COUNT = 32
 @click.group()
 @click.option("-l", "--log-file", default=sys.stderr, help="Log file.", metavar="<file>", type=click.File("wt"))
 def main(log_file):
-    """Tankopoisk v4."""
-    logging.basicConfig(format="%(asctime)s (%(module)s) %(levelname)s %(message)s", level=logging.INFO, stream=log_file)
+    """Tankopoisk."""
+    logging.basicConfig(
+        format="%(asctime)s (%(module)s) %(levelname)s %(message)s",
+        level=logging.INFO,
+        stream=log_file,
+    )
 
 
 def run_in_event_loop(func):
@@ -86,7 +90,7 @@ def get(app_id: str, start_id: int, end_id: int, output):
         aps = (consumer.expected_id - start_id) / (time() - start_time)
         logging.info(
             "#%d (%d) buffer: %d | tanks: %d | aps: %.1f | apd: %.0f",
-            consumer.expected_id, consumer.account_count, len(consumer.buffer),consumer.tank_count, aps, aps * 86400.0,
+            consumer.expected_id, consumer.account_count, len(consumer.buffer), consumer.tank_count, aps, aps * 86400.0,
         )
     # Let the last pending tasks finish.
     logging.info("Finishing.")
