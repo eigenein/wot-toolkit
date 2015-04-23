@@ -6,6 +6,13 @@ Slope One collaborative filtering.
 """
 
 import collections
+import itertools
+import logging
+import sys
+
+import click
+
+import kit
 
 
 class SlopeOne:
@@ -42,3 +49,34 @@ class SlopeOne:
             )
             rating_count += (self.counts[item] - 1)
         return rating_sum / rating_count
+
+    def __str__(self):
+        return "%s(counts=<%d items>, frequencies=<%d items>)" % (
+            SlopeOne.__name__, len(self.counts), len(self.frequencies))
+
+
+@click.command()
+@click.argument("input_", type=click.File("rb"))
+def main(input_):
+    """Run Slope One on statistics file."""
+    logging.basicConfig(
+        format="%(asctime)s (%(module)s) %(levelname)s %(message)s",
+        level=logging.INFO,
+        stream=sys.stderr,
+    )
+    model = SlopeOne()
+    logging.info("Training.")
+    for i in itertools.count():
+        if i % 100 == 0:
+            logging.info("#%d | input: %.1fMiB", i, input_.tell() / kit.MB)
+        stats = kit.read_account_stats(input_)
+        if not stats:
+            break
+        _, tanks = stats
+        model.update({tank.tank_id: tank.wins / tank.battles for tank in tanks})
+    logging.info("Trained model %s.", model)
+    pass  # TODO: save model and predict (split into two separate commands).
+
+
+if __name__ == "__main__":
+    main()

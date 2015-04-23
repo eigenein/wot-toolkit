@@ -327,7 +327,7 @@ def read_uvarints(count, fp):
         yield read_uvarint(fp)
 
 
-def write_account_stats(account_id: int, tanks, fp):
+def write_account_stats(account_id: int, tanks, fp) -> int:
     """Writes account stats into file."""
     tanks = list(tanks)
     fp.write(b">>")
@@ -361,7 +361,7 @@ class AccountTank(collections.namedtuple("AccountTank", "account_id tank_id batt
         return (self.account_id, self.tank_id)
 
 
-def chop(iterable, length):
+def chop(iterable, length: int):
     """Splits iterable into chunks."""
     iterable = iter(iterable)
     while True:
