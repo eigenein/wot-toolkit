@@ -18,6 +18,7 @@ import kit
 class SlopeOne:
     """
     Slope One implementation.
+    http://www.sbup.com/wiki/Slope_One
     """
 
     def __init__(self):
