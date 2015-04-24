@@ -32,7 +32,10 @@ def main(input_: io.IOBase):
     model = train(input_)
     input_.seek(0)
     precision = estimate(input_, model)
+
     print_model(model)
+    print()
+    print("Precision: %.2f." % (100.0 * precision))
 
 
 def train(input_: io.IOBase):
