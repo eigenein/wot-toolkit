@@ -3,4 +3,5 @@ python: 3.4
 install: pip install -r requirements.txt
 before_script: pip install pytest flake8
 script:
+- flake8 --show-source --max-line-length 120 --exclude encyclopedia.py .
 - py.test -v
