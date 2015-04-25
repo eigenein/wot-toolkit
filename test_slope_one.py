@@ -4,7 +4,7 @@
 import slope_one
 
 
-def test_train_predict():
+def test_example():
     model = slope_one.SlopeOne()
     model.update({1: 5.0, 2: 3.0, 3: 2.0})
     model.update({1: 3.0, 2: 4.0})

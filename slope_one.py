@@ -6,8 +6,10 @@ Slope One collaborative filtering.
 """
 
 import collections
+import io
 import itertools
 import logging
+import pickle
 import sys
 
 import click
@@ -51,20 +53,31 @@ class SlopeOne:
             rating_count += (self.counts[item] - 1)
         return rating_sum / rating_count
 
+    def dump(self, fp: io.IOBase):
+        pickle.dump((self.frequencies, self.diffs, self.counts), fp)
+
+    def load(self, fp: io.IOBase):
+        self.frequencies, self.diffs, self.counts = pickle.load(fp)
+
     def __str__(self):
         return "%s(counts=<%d items>, frequencies=<%d items>)" % (
             SlopeOne.__name__, len(self.counts), len(self.frequencies))
 
 
-@click.command()
-@click.argument("input_", type=click.File("rb"))
-def main(input_):
+@click.group()
+def main():
     """Run Slope One on statistics file."""
     logging.basicConfig(
         format="%(asctime)s (%(module)s) %(levelname)s %(message)s",
         level=logging.INFO,
         stream=sys.stderr,
     )
+
+
+@main.command()
+@click.argument("input_", type=click.File("rb"))
+@click.argument("output", type=click.File("wb"))
+def train(input_, output):
     model = SlopeOne()
     logging.info("Training.")
     for i in itertools.count():
@@ -76,7 +89,8 @@ def main(input_):
         _, tanks = stats
         model.update({tank.tank_id: tank.wins / tank.battles for tank in tanks})
     logging.info("Trained model %s.", model)
-    pass  # TODO: save model and predict (split into two separate commands).
+    model.dump(output)
+    logging.info("Saved model.")
 
 
 if __name__ == "__main__":
