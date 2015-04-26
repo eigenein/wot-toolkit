@@ -53,9 +53,10 @@ def main(input_: io.IOBase, account_id: int):
         "application_id": "demo",
         "fields": "tank_id,statistics",
     }).json()["data"][str(account_id)]
-    my_rated_items = {
+    train_items = {
         int(tank["tank_id"]): tank["statistics"]["wins"] / tank["statistics"]["battles"]
         for tank in my_tanks
+        if tank["statistics"]["battles"] >= 5
     }
 
     similarity_sums = collections.Counter()
@@ -70,21 +71,21 @@ def main(input_: io.IOBase, account_id: int):
         if _account_id == account_id:
             continue
         other_rated_items = {tank.tank_id: tank.wins / tank.battles for tank in tanks}
-        similarity = pearson(my_rated_items, other_rated_items)
+        similarity = pearson(train_items, other_rated_items)
         if similarity <= 0.0:
             continue
-        for tank_id, rating in other_rated_items.items():
+        for tank_id, my_rating in other_rated_items.items():
             similarity_sums[tank_id] += similarity
-            model[tank_id] += similarity * rating
+            model[tank_id] += similarity * my_rating
 
     print("Model Predictions:")
     print()
     for chunk in kit.chop(model.items(), 4):
-        for tank_id, rating in chunk:
+        for tank_id, my_rating in chunk:
             print(
                 "%16s: %6.2f" % (
                     encyclopedia.TANKS[tank_id]["short_name_i18n"],
-                    100.0 * rating / similarity_sums[tank_id],
+                    100.0 * my_rating / similarity_sums[tank_id],
                 ),
                 end="",
             )
@@ -93,29 +94,29 @@ def main(input_: io.IOBase, account_id: int):
 
     print("My Tanks:")
     print()
-    my_rating = (
+    my_total_rating = (
         sum(tank["statistics"]["wins"] for tank in my_tanks) /
         sum(tank["statistics"]["battles"] for tank in my_tanks)
     )
     precise_50 = 0
     precise_my_rating = 0
-    for chunk in kit.chop(my_rated_items.items(), 3):
-        for tank_id, rating in chunk:
+    for chunk in kit.chop(train_items.items(), 3):
+        for tank_id, my_rating in chunk:
             predicted_rating = model[tank_id] / similarity_sums[tank_id]
             print(
                 "%16s: %6.2f (%5.2f)" % (
                     encyclopedia.TANKS[tank_id]["short_name_i18n"],
-                    100.0 * rating,
+                    100.0 * my_rating,
                     100.0 * predicted_rating,
                 ),
                 end="",
             )
-            precise_50 += (predicted_rating >= 0.5) == (rating >= 0.5)
-            precise_my_rating += (predicted_rating >= my_rating) == (rating >= my_rating)
+            precise_50 += (predicted_rating >= 0.5) == (my_rating >= 0.5)
+            precise_my_rating += (predicted_rating >= my_total_rating) == (my_rating >= my_total_rating)
         print()
     print()
-    print("Precision (> 50.00%%): %.1f." % (100.0 * precise_50 / len(my_rated_items)))
-    print("Precision (> %.2f%%): %.1f." % (100.0 * my_rating, 100.0 * precise_my_rating / len(my_rated_items)))
+    print("Precision (> 50.00%%): %.1f." % (100.0 * precise_50 / len(train_items)))
+    print("Precision (> %.2f%%): %.1f." % (100.0 * my_total_rating, 100.0 * precise_my_rating / len(train_items)))
 
 if __name__ == "__main__":
     main()
