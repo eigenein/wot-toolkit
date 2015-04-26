@@ -56,8 +56,10 @@ def main(input_: io.IOBase, account_id: int):
     train_items = {
         int(tank["tank_id"]): tank["statistics"]["wins"] / tank["statistics"]["battles"]
         for tank in my_tanks
-        if tank["statistics"]["battles"] >= 60
+        if tank["statistics"]["battles"] >= 30
     }
+    test_items = dict(train_items.popitem() for _ in range(len(train_items) // 5))
+    logging.info("%d train items. %d test items.", len(train_items), len(test_items))
 
     similarity_sums = collections.Counter()
     model = collections.Counter()
@@ -92,7 +94,7 @@ def main(input_: io.IOBase, account_id: int):
         print()
     print()
 
-    print("My Tanks:")
+    print("Test Items:")
     print()
     my_total_rating = (
         sum(tank["statistics"]["wins"] for tank in my_tanks) /
@@ -100,7 +102,7 @@ def main(input_: io.IOBase, account_id: int):
     )
     precise_50 = 0
     precise_my_rating = 0
-    for chunk in kit.chop(train_items.items(), 3):
+    for chunk in kit.chop(test_items.items(), 3):
         for tank_id, my_rating in chunk:
             predicted_rating = model[tank_id] / similarity_sums[tank_id]
             print(
@@ -115,8 +117,8 @@ def main(input_: io.IOBase, account_id: int):
             precise_my_rating += (predicted_rating >= my_total_rating) == (my_rating >= my_total_rating)
         print()
     print()
-    print("Precision (> 50.00%%): %.1f." % (100.0 * precise_50 / len(train_items)))
-    print("Precision (> %.2f%%): %.1f." % (100.0 * my_total_rating, 100.0 * precise_my_rating / len(train_items)))
+    print("Precision (> 50.00%%): %.1f." % (100.0 * precise_50 / len(test_items)))
+    print("Precision (> %.2f%%): %.1f." % (100.0 * my_total_rating, 100.0 * precise_my_rating / len(test_items)))
 
 if __name__ == "__main__":
     main()
