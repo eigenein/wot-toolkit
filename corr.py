@@ -64,7 +64,7 @@ def main(input_: io.IOBase, account_id: int):
     similarity_sums = collections.Counter()
     model = collections.Counter()
     for i in itertools.count():
-        if i % 100 == 0:
+        if i % 1000 == 0:
             logging.info("#%d | input: %.1fMiB", i, input_.tell() / kit.MB)
         stats = kit.read_account_stats(input_)
         if not stats:
