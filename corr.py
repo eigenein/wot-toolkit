@@ -56,7 +56,7 @@ def main(input_: io.IOBase, account_id: int):
     train_items = {
         int(tank["tank_id"]): tank["statistics"]["wins"] / tank["statistics"]["battles"]
         for tank in my_tanks
-        if tank["statistics"]["battles"] >= 5
+        if tank["statistics"]["battles"] >= 60
     }
 
     similarity_sums = collections.Counter()
