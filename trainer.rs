@@ -52,11 +52,9 @@ mod stats {
 
     /// Reads next account statistics.
     pub fn read_account<R: Read>(input: &mut R) -> Option<Account> {
-        let mut buffer: [u8; 2] = [0, 0];
-        if input.read(&mut buffer).unwrap() != 2 { // TODO: buggy.
+        if !check_account_header(input) {
             return None;
         }
-        assert_eq!(buffer, [0x3e, 0x3e]);
         let account_id = protobuf::read_uvarint(input).unwrap();
         let tank_count = protobuf::read_uvarint(input).unwrap();
         let mut tanks = Vec::new();
@@ -67,6 +65,19 @@ mod stats {
             tanks.push(Tank { id: tank_id, battles: battles, wins: wins });
         }
         Some(Account { id: account_id, tanks: tanks })
+    }
+
+    /// Checks account header.
+    /// TODO: read 2 bytes at once.
+    fn check_account_header<R: Read>(input: &mut R) -> bool {
+        let mut buffer: [u8; 1] = [0];
+        if input.read(&mut buffer).unwrap() != 1 {
+            return false; // end of file
+        }
+        assert_eq!(buffer, [0x3e]);
+        assert_eq!(input.read(&mut buffer).unwrap(), 1);
+        assert_eq!(buffer, [0x3e]);
+        true
     }
 
     #[test]
@@ -112,7 +123,7 @@ fn main() {
             },
             None => { break; }
         }
-        if i % 100 == 0 {
+        if i % 10000 == 0 {
             println!("#{} | tanks: {}", i, tank_count);
         }
     }
