@@ -1,8 +1,6 @@
-
 #![feature(step_by)]
 /// Protocol Buffers format.
 mod protobuf {
-
     use std::io::{Cursor, Read};
 
     /// Reads next UVarint.
@@ -35,26 +33,27 @@ mod protobuf {
 
 /// Statistics file reading.
 mod stats {
-
     use std::io::{Cursor, Read};
 
     use protobuf;
 
+    #[derive(Debug)]
     pub struct Tank {
-        id: u32,
-        battles: u32,
-        wins: u32
+        pub id: u32,
+        pub battles: u32,
+        pub wins: u32
     }
 
+    #[derive(Debug)]
     pub struct Account {
-        id: u32,
-        tanks: Vec<Tank>
+        pub id: u32,
+        pub tanks: Vec<Tank>
     }
 
     /// Reads next account statistics.
     pub fn read_account<R: Read>(input: &mut R) -> Option<Account> {
         let mut buffer: [u8; 2] = [0, 0];
-        if input.read(&mut buffer).unwrap() != 2 {
+        if input.read(&mut buffer).unwrap() != 2 { // TODO: buggy.
             return None;
         }
         assert_eq!(buffer, [0x3e, 0x3e]);
@@ -83,7 +82,6 @@ mod stats {
 
 /// Similarity functions.
 mod sim {
-
     fn pearson() {
         // TODO.
     }
@@ -96,10 +94,28 @@ mod sim {
 
 /// Collaborative filtering.
 mod cf {
-
     // TODO.
 }
 
+use std::io;
+
 fn main() {
-    // TODO.
+    println!("Started reading.");
+
+    let mut stdin = io::stdin();
+    let mut tank_count = 0;
+
+    for i in 0.. {
+        match stats::read_account(&mut stdin) {
+            Some(account) => {
+                tank_count += account.tanks.len();
+            },
+            None => { break; }
+        }
+        if i % 100 == 0 {
+            println!("#{} | tanks: {}", i, tank_count);
+        }
+    }
+
+    println!("Reading finished.");
 }
