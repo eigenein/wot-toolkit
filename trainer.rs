@@ -5,7 +5,8 @@ mod protobuf {
 
     use std::io::{Cursor, Read};
 
-    fn read_uvarint<R: Read>(input: &mut R) -> Option<u32> {
+    /// Reads next UVarint.
+    pub fn read_uvarint<R: Read>(input: &mut R) -> Option<u32> {
         let mut value: u32 = 0;
 
         for shift in (0..).step_by(7) {
@@ -29,6 +30,54 @@ mod protobuf {
         assert_eq!(read_uvarint(&mut Cursor::new(vec![0x03])).unwrap(), 3);
         assert_eq!(read_uvarint(&mut Cursor::new(vec![0x8E, 0x02])).unwrap(), 270);
         assert_eq!(read_uvarint(&mut Cursor::new(vec![0x9E, 0xA7, 0x05])).unwrap(), 86942);
+    }
+}
+
+/// Statistics file reading.
+mod stats {
+
+    use std::io::{Cursor, Read};
+
+    use protobuf;
+
+    pub struct Tank {
+        id: u32,
+        battles: u32,
+        wins: u32
+    }
+
+    pub struct Account {
+        id: u32,
+        tanks: Vec<Tank>
+    }
+
+    /// Reads next account statistics.
+    pub fn read_account<R: Read>(input: &mut R) -> Option<Account> {
+        let mut buffer: [u8; 2] = [0, 0];
+        if input.read(&mut buffer).unwrap() != 2 {
+            return None;
+        }
+        assert_eq!(buffer, [0x3e, 0x3e]);
+        let account_id = protobuf::read_uvarint(input).unwrap();
+        let tank_count = protobuf::read_uvarint(input).unwrap();
+        let mut tanks = Vec::new();
+        for _ in 0..tank_count {
+            let tank_id = protobuf::read_uvarint(input).unwrap();
+            let battles = protobuf::read_uvarint(input).unwrap();
+            let wins = protobuf::read_uvarint(input).unwrap();
+            tanks.push(Tank { id: tank_id, battles: battles, wins: wins });
+        }
+        Some(Account { id: account_id, tanks: tanks })
+    }
+
+    #[test]
+    fn test_read_account() {
+        let account = read_account(&mut Cursor::new(vec![0x3e, 0x3e, 0x03, 0x01, 0x8E, 0x02, 0x9E, 0xA7, 0x05, 0x9D, 0xA7, 0x05])).unwrap();
+        assert_eq!(account.id, 3);
+        assert_eq!(account.tanks.len(), 1);
+        assert_eq!(account.tanks[0].id, 270);
+        assert_eq!(account.tanks[0].battles, 86942);
+        assert_eq!(account.tanks[0].wins, 86941);
     }
 }
 
