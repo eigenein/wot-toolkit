@@ -1,4 +1,3 @@
-#![feature(step_by)]
 /// Protocol Buffers format.
 mod protobuf {
     use std::io::{Cursor, Read};
@@ -6,9 +5,10 @@ mod protobuf {
     /// Reads next UVarint.
     pub fn read_uvarint<R: Read>(input: &mut R) -> Option<u32> {
         let mut value: u32 = 0;
+        let mut shift: u32 = 0;
 
-        for shift in (0..).step_by(7) {
-            let mut buffer: [u8; 1] = [0];
+        loop {
+            let mut buffer = [0u8; 1];
             if input.read(&mut buffer).unwrap() == 0 {
                 return None;
             }
@@ -16,6 +16,7 @@ mod protobuf {
             if buffer[0] & 0x80 == 0 {
                 break;
             }
+            shift += 7;
         }
 
         Some(value)
@@ -52,7 +53,7 @@ mod stats {
 
     /// Reads next account statistics.
     pub fn read_account<R: Read>(input: &mut R) -> Option<Account> {
-        if !check_account_header(input) {
+        if !skip_account_header(input) {
             return None;
         }
         let account_id = protobuf::read_uvarint(input).unwrap();
@@ -67,17 +68,11 @@ mod stats {
         Some(Account { id: account_id, tanks: tanks })
     }
 
-    /// Checks account header.
+    /// Skips account header.
     /// TODO: read 2 bytes at once.
-    fn check_account_header<R: Read>(input: &mut R) -> bool {
-        let mut buffer: [u8; 1] = [0];
-        if input.read(&mut buffer).unwrap() != 1 {
-            return false; // end of file
-        }
-        assert_eq!(buffer, [0x3e]);
-        assert_eq!(input.read(&mut buffer).unwrap(), 1);
-        assert_eq!(buffer, [0x3e]);
-        true
+    fn skip_account_header<R: Read>(input: &mut R) -> bool {
+        let mut buffer = [0u8; 1];
+        input.read(&mut buffer).unwrap() == 1 && input.read(&mut buffer).unwrap() == 1
     }
 
     #[test]
@@ -113,11 +108,11 @@ use std::io;
 fn main() {
     println!("Started reading.");
 
-    let mut stdin = io::stdin();
+    let mut input = io::stdin();
     let mut tank_count = 0;
 
     for i in 0.. {
-        match stats::read_account(&mut stdin) {
+        match stats::read_account(&mut input) {
             Some(account) => {
                 tank_count += account.tanks.len();
             },
