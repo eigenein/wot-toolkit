@@ -86,21 +86,9 @@ mod stats {
     }
 }
 
-/// Similarity functions.
-mod sim {
-    fn pearson() {
-        // TODO.
-    }
-
-    #[test]
-    fn test_pearson() {
-        // TODO.
-    }
-}
-
 /// Collaborative filtering.
 mod cf {
-    use std::collections::HashMap;
+    use std::collections::{HashMap, HashSet};
 
     /// Contains account ID and account's rating of the item.
     pub struct Entry {
@@ -110,6 +98,82 @@ mod cf {
 
     /// Maps item ID to a vector of `Entry`.
     pub type Ratings = HashMap<u32, Vec<Entry>>;
+
+    /// Trains model.
+    ///
+    /// Computes similarity between each pair of items.
+    pub fn train(ratings: &Ratings) {
+        // TODO.
+    }
+
+    /// Predicts ratings for account.
+    pub fn predict() {
+        // TODO.
+    }
+
+    fn pearson(entries_1: Vec<Entry>, entries_2: Vec<Entry>) -> f32 {
+        let (accounts_1, ratings_1) = to_hash_set_and_map(entries_1);
+        let (accounts_2, ratings_2) = to_hash_set_and_map(entries_2);
+
+        let shared_accounts: Vec<_> = accounts_1.intersection(&accounts_2).collect();
+        if shared_accounts.len() == 0 { return 0.0; }
+
+        let mut sum_1 = 0.0;
+        let mut sum_2 = 0.0;
+        let mut sum_q1 = 0.0;
+        let mut sum_q2 = 0.0;
+        let mut p_sum = 0.0;
+
+        for account_id in shared_accounts.iter() {
+            let rating_1 = *ratings_1.get(&account_id).unwrap();
+            let rating_2 = *ratings_2.get(&account_id).unwrap();
+            sum_1 += rating_1;
+            sum_2 += rating_2;
+            sum_q1 += rating_1 * rating_1;
+            sum_q2 += rating_2 * rating_2;
+            p_sum += rating_1 * rating_2;
+        }
+
+        let n = shared_accounts.len() as f32;
+        let denominator = ((sum_q1 - sum_1 * sum_1 / n) * (sum_q2 - sum_2 * sum_2 / n)).max(0.0).sqrt();
+
+        if denominator < 0.000001 { 0.0 } else { (p_sum - sum_1 * sum_2 / n) / denominator }
+    }
+
+    /// Creates a set of account IDs and a map of account ID to rating.
+    fn to_hash_set_and_map(entries: Vec<Entry>) -> (HashSet<u32>, HashMap<u32, f32>) {
+        let mut set = HashSet::new();
+        let mut map = HashMap::new();
+        for entry in entries {
+            set.insert(entry.account_id);
+            map.insert(entry.account_id, entry.rating);
+        }
+        (set, map)
+    }
+
+    #[test]
+    fn test_pearson() {
+        let correlation = pearson(
+            vec![
+                Entry { account_id: 1, rating: 2.5 },
+                Entry { account_id: 2, rating: 3.5 },
+                Entry { account_id: 3, rating: 3.0 },
+                Entry { account_id: 4, rating: 3.5 },
+                Entry { account_id: 5, rating: 2.5 },
+                Entry { account_id: 6, rating: 3.0 }
+            ],
+            vec![
+                Entry { account_id: 1, rating: 3.0 },
+                Entry { account_id: 2, rating: 3.5 },
+                Entry { account_id: 3, rating: 1.5 },
+                Entry { account_id: 4, rating: 5.0 },
+                Entry { account_id: 5, rating: 3.5 },
+                Entry { account_id: 6, rating: 3.0 }
+            ]
+        );
+        println!("{:?}", correlation);
+        assert!(0.3960 < correlation && correlation < 0.3961);
+    }
 }
 
 /// CF trainer.
