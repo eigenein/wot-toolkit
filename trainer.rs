@@ -100,22 +100,31 @@ mod sim {
 
 /// Collaborative filtering.
 mod cf {
-    // TODO.
+    /// Rating table entry.
+    pub struct Entry {
+        pub user_id: u32,
+        pub rating: f32
+    }
 }
 
+use std::collections::HashMap;
 use std::io;
+
+const MIN_BATTLES: u32 = 0;
 
 fn main() {
     println!("Started reading.");
 
     let mut input = io::stdin();
     let mut tank_count = 0;
+    let mut ratings: HashMap<u32, Vec<cf::Entry>> = HashMap::new();
 
     for i in 0.. {
         match stats::read_account(&mut input) {
             Some(account) => {
                 tank_count += account.tanks.len();
-            },
+                insert_account(&mut ratings, account);
+            }
             None => { break; }
         }
         if i % 10000 == 0 {
@@ -124,4 +133,18 @@ fn main() {
     }
 
     println!("Reading finished.");
+}
+
+/// Inserts account into the ratings table.
+fn insert_account(ratings: &mut HashMap<u32, Vec<cf::Entry>>, account: stats::Account) {
+    for tank in account.tanks {
+        if tank.battles < MIN_BATTLES {
+            continue;
+        }
+        let entry = cf::Entry {
+            user_id: account.id,
+            rating: tank.wins as f32 / tank.battles as f32
+        };
+        // TODO.
+    }
 }
