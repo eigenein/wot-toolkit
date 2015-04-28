@@ -1,9 +1,9 @@
 /// Protocol Buffers format.
 mod protobuf {
-    use std::io::{Cursor, Read};
+    use std::io;
 
     /// Reads next UVarint.
-    pub fn read_uvarint<R: Read>(input: &mut R) -> Option<u32> {
+    pub fn read_uvarint<R: io::Read>(input: &mut R) -> Option<u32> {
         let mut value: u32 = 0;
         let mut shift: u32 = 0;
 
@@ -24,17 +24,17 @@ mod protobuf {
 
     #[test]
     fn test_read_uvarint() {
-        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x80])), None);
-        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x00])).unwrap(), 0);
-        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x03])).unwrap(), 3);
-        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x8E, 0x02])).unwrap(), 270);
-        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x9E, 0xA7, 0x05])).unwrap(), 86942);
+        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x80])), None);
+        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x00])).unwrap(), 0);
+        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x03])).unwrap(), 3);
+        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x8E, 0x02])).unwrap(), 270);
+        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x9E, 0xA7, 0x05])).unwrap(), 86942);
     }
 }
 
 /// Statistics file reading.
 mod stats {
-    use std::io::{Cursor, Read};
+    use std::io;
 
     use protobuf;
 
@@ -52,7 +52,7 @@ mod stats {
     }
 
     /// Reads next account statistics.
-    pub fn read_account<R: Read>(input: &mut R) -> Option<Account> {
+    pub fn read_account<R: io::Read>(input: &mut R) -> Option<Account> {
         if !skip_account_header(input) {
             return None;
         }
@@ -70,14 +70,14 @@ mod stats {
 
     /// Skips account header.
     /// TODO: read 2 bytes at once.
-    fn skip_account_header<R: Read>(input: &mut R) -> bool {
+    fn skip_account_header<R: io::Read>(input: &mut R) -> bool {
         let mut buffer = [0u8; 1];
         input.read(&mut buffer).unwrap() == 1 && input.read(&mut buffer).unwrap() == 1
     }
 
     #[test]
     fn test_read_account() {
-        let account = read_account(&mut Cursor::new(vec![0x3e, 0x3e, 0x03, 0x01, 0x8E, 0x02, 0x9E, 0xA7, 0x05, 0x9D, 0xA7, 0x05])).unwrap();
+        let account = read_account(&mut io::Cursor::new(vec![0x3e, 0x3e, 0x03, 0x01, 0x8E, 0x02, 0x9E, 0xA7, 0x05, 0x9D, 0xA7, 0x05])).unwrap();
         assert_eq!(account.id, 3);
         assert_eq!(account.tanks.len(), 1);
         assert_eq!(account.tanks[0].id, 270);
@@ -100,16 +100,18 @@ mod sim {
 
 /// Collaborative filtering.
 mod cf {
-    /// Rating table entry.
+    use std::collections::HashMap;
+
     pub struct Entry {
-        pub user_id: u32,
+        pub account_id: u32,
         pub rating: f32
     }
+
+    pub type Ratings = HashMap<u32, Vec<Entry>>;
 }
 
 /// CF trainer.
 mod trainer {
-    use std::collections::HashMap;
     use std::io::Read;
 
     use cf;
@@ -117,16 +119,14 @@ mod trainer {
 
     const MIN_BATTLES: u32 = 0;
 
-    pub type Ratings = HashMap<u32, Vec<cf::Entry>>;
-
     /// Inserts account into the ratings table.
-    pub fn insert_account(ratings: &mut Ratings, account: stats::Account) {
+    pub fn insert_account(ratings: &mut cf::Ratings, account: stats::Account) {
         for tank in account.tanks {
             if tank.battles < MIN_BATTLES {
                 continue;
             }
             let entry = cf::Entry {
-                user_id: account.id,
+                account_id: account.id,
                 rating: tank.wins as f32 / tank.battles as f32
             };
             if let Some(entries) = ratings.get_mut(&tank.id) {
@@ -138,7 +138,7 @@ mod trainer {
     }
 
     /// Reads ratings from the input into hashmap.
-    pub fn read_ratings<R: Read>(input: &mut R, ratings: &mut Ratings) {
+    pub fn read_ratings<R: Read>(input: &mut R, ratings: &mut cf::Ratings) {
         let mut tank_count = 0;
         for i in 1.. {
             if let Some(account) = stats::read_account(input) {
@@ -151,7 +151,7 @@ mod trainer {
             } else {
                 break;
             }
-            if i % 10000 == 0 {
+            if i % 100000 == 0 {
                 println!("#{} | tanks: {}", i, tank_count);
             }
         }
@@ -160,11 +160,11 @@ mod trainer {
     #[test]
     fn test_insert_account() {
         let mut ratings = HashMap::new();
-        insert_account(&mut ratings, stats::Account{ id: 1, tanks: vec![
+        insert_account(&mut ratings, stats::Account{ id: 100, tanks: vec![
             stats::Tank { id: 1, battles: 10, wins: 5 },
             stats::Tank { id: 2, battles: 5, wins: 2}
         ]});
-        insert_account(&mut ratings, stats::Account{ id: 1, tanks: vec![
+        insert_account(&mut ratings, stats::Account{ id: 101, tanks: vec![
             stats::Tank { id: 2, battles: 7, wins: 3 },
             stats::Tank { id: 3, battles: 50, wins: 1}
         ]});
