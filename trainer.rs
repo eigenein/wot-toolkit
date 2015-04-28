@@ -107,44 +107,81 @@ mod cf {
     }
 }
 
+/// CF trainer.
+mod trainer {
+    use std::collections::HashMap;
+    use std::io::Read;
+
+    use cf;
+    use stats;
+
+    const MIN_BATTLES: u32 = 0;
+
+    pub type Ratings = HashMap<u32, Vec<cf::Entry>>;
+
+    /// Inserts account into the ratings table.
+    pub fn insert_account(ratings: &mut Ratings, account: stats::Account) {
+        for tank in account.tanks {
+            if tank.battles < MIN_BATTLES {
+                continue;
+            }
+            let entry = cf::Entry {
+                user_id: account.id,
+                rating: tank.wins as f32 / tank.battles as f32
+            };
+            if let Some(entries) = ratings.get_mut(&tank.id) {
+                entries.push(entry);
+                continue;
+            }
+            ratings.insert(tank.id, vec![entry]);
+        }
+    }
+
+    /// Reads ratings from the input into hashmap.
+    pub fn read_ratings<R: Read>(input: &mut R, ratings: &mut Ratings) {
+        let mut tank_count = 0;
+        for i in 1.. {
+            if let Some(account) = stats::read_account(input) {
+                if i % 2 == 1 {
+                    // Skip each second account because of no memory.
+                    continue;
+                }
+                tank_count += account.tanks.len();
+                insert_account(ratings, account);
+            } else {
+                break;
+            }
+            if i % 10000 == 0 {
+                println!("#{} | tanks: {}", i, tank_count);
+            }
+        }
+    }
+
+    #[test]
+    fn test_insert_account() {
+        let mut ratings = HashMap::new();
+        insert_account(&mut ratings, stats::Account{ id: 1, tanks: vec![
+            stats::Tank { id: 1, battles: 10, wins: 5 },
+            stats::Tank { id: 2, battles: 5, wins: 2}
+        ]});
+        insert_account(&mut ratings, stats::Account{ id: 1, tanks: vec![
+            stats::Tank { id: 2, battles: 7, wins: 3 },
+            stats::Tank { id: 3, battles: 50, wins: 1}
+        ]});
+        assert_eq!(ratings.len(), 3);
+        assert_eq!(ratings.get(&1).unwrap().len(), 1);
+        assert_eq!(ratings.get(&2).unwrap().len(), 2);
+        assert_eq!(ratings.get(&3).unwrap().len(), 1);
+    }
+}
+
 use std::collections::HashMap;
 use std::io;
 
-const MIN_BATTLES: u32 = 0;
-
 fn main() {
     println!("Started reading.");
-
     let mut input = io::stdin();
-    let mut tank_count = 0;
-    let mut ratings: HashMap<u32, Vec<cf::Entry>> = HashMap::new();
-
-    for i in 0.. {
-        match stats::read_account(&mut input) {
-            Some(account) => {
-                tank_count += account.tanks.len();
-                insert_account(&mut ratings, account);
-            }
-            None => { break; }
-        }
-        if i % 10000 == 0 {
-            println!("#{} | tanks: {}", i, tank_count);
-        }
-    }
-
+    let mut ratings = HashMap::new();
+    trainer::read_ratings(&mut input, &mut ratings);
     println!("Reading finished.");
-}
-
-/// Inserts account into the ratings table.
-fn insert_account(ratings: &mut HashMap<u32, Vec<cf::Entry>>, account: stats::Account) {
-    for tank in account.tanks {
-        if tank.battles < MIN_BATTLES {
-            continue;
-        }
-        let entry = cf::Entry {
-            user_id: account.id,
-            rating: tank.wins as f32 / tank.battles as f32
-        };
-        // TODO.
-    }
 }
