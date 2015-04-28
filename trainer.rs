@@ -102,11 +102,13 @@ mod sim {
 mod cf {
     use std::collections::HashMap;
 
+    /// Contains account ID and account's rating of the item.
     pub struct Entry {
         pub account_id: u32,
         pub rating: f32
     }
 
+    /// Maps item ID to a vector of `Entry`.
     pub type Ratings = HashMap<u32, Vec<Entry>>;
 }
 
@@ -159,7 +161,7 @@ mod trainer {
 
     #[test]
     fn test_insert_account() {
-        let mut ratings = HashMap::new();
+        let mut ratings = cf::Ratings::new();
         insert_account(&mut ratings, stats::Account{ id: 100, tanks: vec![
             stats::Tank { id: 1, battles: 10, wins: 5 },
             stats::Tank { id: 2, battles: 5, wins: 2}
@@ -175,13 +177,12 @@ mod trainer {
     }
 }
 
-use std::collections::HashMap;
 use std::io;
 
 fn main() {
     println!("Started reading.");
     let mut input = io::stdin();
-    let mut ratings = HashMap::new();
+    let mut ratings = cf::Ratings::new();
     trainer::read_ratings(&mut input, &mut ratings);
     println!("Reading finished.");
 }
