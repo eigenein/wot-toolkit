@@ -177,11 +177,16 @@ mod trainer {
     }
 }
 
-use std::io;
-
 fn main() {
+    use std::env::args;
+    use std::io::BufReader;
+    use std::fs::File;
+    use std::path::Path;
+
+    let file = File::open(&Path::new(&args().nth(1).unwrap())).unwrap();
+    let mut input = BufReader::new(&file);
+
     println!("Started reading.");
-    let mut input = io::stdin();
     let mut ratings = cf::Ratings::new();
     trainer::read_ratings(&mut input, &mut ratings);
     println!("Reading finished.");
