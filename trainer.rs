@@ -112,11 +112,18 @@ mod cf {
     }
 
     fn pearson(entries_1: Vec<Entry>, entries_2: Vec<Entry>) -> f32 {
-        let (accounts_1, ratings_1) = to_hash_set_and_map(entries_1);
-        let (accounts_2, ratings_2) = to_hash_set_and_map(entries_2);
+        let ratings_1 = to_hash_map(entries_1);
+        let ratings_2 = to_hash_map(entries_2);
 
-        let shared_accounts: Vec<_> = accounts_1.intersection(&accounts_2).collect();
-        if shared_accounts.len() == 0 { return 0.0; }
+        let mut shared_accounts = Vec::new();
+        for account_id in ratings_1.keys() {
+            if ratings_2.contains_key(account_id) {
+                shared_accounts.push(account_id)
+            }
+        }
+        if shared_accounts.len() == 0 {
+            return 0.0;
+        }
 
         let mut sum_1 = 0.0;
         let mut sum_2 = 0.0;
@@ -140,15 +147,13 @@ mod cf {
         if denominator < 0.000001 { 0.0 } else { (p_sum - sum_1 * sum_2 / n) / denominator }
     }
 
-    /// Creates a set of account IDs and a map of account ID to rating.
-    fn to_hash_set_and_map(entries: Vec<Entry>) -> (HashSet<u32>, HashMap<u32, f32>) {
-        let mut set = HashSet::new();
+    /// Creates a map of account ID to rating.
+    fn to_hash_map(entries: Vec<Entry>) -> HashMap<u32, f32> {
         let mut map = HashMap::new();
         for entry in entries {
-            set.insert(entry.account_id);
             map.insert(entry.account_id, entry.rating);
         }
-        (set, map)
+        map
     }
 
     #[test]
