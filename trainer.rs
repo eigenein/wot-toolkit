@@ -88,7 +88,7 @@ mod stats {
 
 /// Collaborative filtering.
 mod cf {
-    use std::collections::{HashMap, HashSet};
+    use std::collections::HashMap;
 
     /// Contains account ID and account's rating of the item.
     pub struct Entry {
@@ -102,8 +102,21 @@ mod cf {
     /// Trains model.
     ///
     /// Computes similarity between each pair of items.
-    pub fn train(ratings: &Ratings) {
-        // TODO.
+    pub fn train(ratings: Ratings) -> HashMap<(u32, u32), f32> {
+        let mut similarities = HashMap::new();
+        for (i, item_1) in ratings.keys().enumerate() {
+            println!("#{}/{} training", i, ratings.len());
+            for item_2 in ratings.keys() {
+                if item_1 >= item_2 {
+                    continue;
+                }
+                let similarity = pearson(ratings.get(item_1).unwrap(), ratings.get(item_2).unwrap());
+                similarities.insert((*item_1, *item_2), similarity);
+                similarities.insert((*item_2, *item_1), similarity);
+            }
+        }
+        println!("Training finished: {} entries in model.", similarities.len());
+        similarities
     }
 
     /// Predicts ratings for account.
@@ -111,7 +124,7 @@ mod cf {
         // TODO.
     }
 
-    fn pearson(entries_1: Vec<Entry>, entries_2: Vec<Entry>) -> f32 {
+    fn pearson(entries_1: &Vec<Entry>, entries_2: &Vec<Entry>) -> f32 {
         let ratings_1 = to_hash_map(entries_1);
         let ratings_2 = to_hash_map(entries_2);
 
@@ -148,7 +161,7 @@ mod cf {
     }
 
     /// Creates a map of account ID to rating.
-    fn to_hash_map(entries: Vec<Entry>) -> HashMap<u32, f32> {
+    fn to_hash_map(entries: &Vec<Entry>) -> HashMap<u32, f32> {
         let mut map = HashMap::new();
         for entry in entries {
             map.insert(entry.account_id, entry.rating);
@@ -157,9 +170,14 @@ mod cf {
     }
 
     #[test]
+    fn test_train() {
+        // TODO.
+    }
+
+    #[test]
     fn test_pearson() {
         let correlation = pearson(
-            vec![
+            &vec![
                 Entry { account_id: 1, rating: 2.5 },
                 Entry { account_id: 2, rating: 3.5 },
                 Entry { account_id: 3, rating: 3.0 },
@@ -167,7 +185,7 @@ mod cf {
                 Entry { account_id: 5, rating: 2.5 },
                 Entry { account_id: 6, rating: 3.0 }
             ],
-            vec![
+            &vec![
                 Entry { account_id: 1, rating: 3.0 },
                 Entry { account_id: 2, rating: 3.5 },
                 Entry { account_id: 3, rating: 1.5 },
@@ -176,7 +194,6 @@ mod cf {
                 Entry { account_id: 6, rating: 3.0 }
             ]
         );
-        println!("{:?}", correlation);
         assert!(0.3960 < correlation && correlation < 0.3961);
     }
 }
@@ -223,7 +240,7 @@ mod trainer {
                 break;
             }
             if i % 100000 == 0 {
-                println!("#{} | tanks: {}", i, tank_count);
+                println!("#{} reading | tanks: {}", i, tank_count);
             }
         }
     }
@@ -255,8 +272,7 @@ fn main() {
     let file = File::open(&Path::new(&args().nth(1).unwrap())).unwrap();
     let mut input = BufReader::new(&file);
 
-    println!("Started reading.");
     let mut ratings = cf::Ratings::new();
     trainer::read_ratings(&mut input, &mut ratings);
-    println!("Reading finished.");
+    let model = cf::train(ratings);
 }
