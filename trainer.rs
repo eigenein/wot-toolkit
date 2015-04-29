@@ -94,17 +94,17 @@ mod stats {
 mod cf {
     use std::collections::HashMap;
 
-    /// Contains account ID and account's rating of the item.
-    pub struct AccountRating {
+    /// A pair of ID (either account or item) and corresponding rating.
+    pub struct Rating {
         pub id: u32,
         pub rating: f32
     }
 
-    /// Vector of entries.
-    pub type ItemRatings = Vec<AccountRating>;
+    /// Vector of `Rating`.
+    pub type Ratings = Vec<Rating>;
 
-    /// Maps item ID to a vector of `AccountRating`.
-    pub type RatingTable = HashMap<u32, ItemRatings>;
+    /// Maps item ID to `Ratings`.
+    pub type RatingTable = HashMap<u32, Ratings>;
 
     /// Maps a pair of items into their similarity.
     pub type Model = HashMap<(u32, u32), f32>;
@@ -130,14 +130,14 @@ mod cf {
     }
 
     /// Predicts item rating by rated items.
-    pub fn predict(rating_table: RatingTable, item: u32) -> f32 {
+    pub fn predict(rating_table: RatingTable, account_ratings: Ratings, item: u32) -> f32 {
         let mut similarity_sum = 0.0;
         let mut rating_similarity_sum = 0.0;
         // TODO.
         rating_similarity_sum / similarity_sum
     }
 
-    fn pearson(entries_1: &ItemRatings, entries_2: &ItemRatings) -> f32 {
+    fn pearson(entries_1: &Ratings, entries_2: &Ratings) -> f32 {
         let ratings_1 = to_hash_map(entries_1);
         let ratings_2 = to_hash_map(entries_2);
 
@@ -174,7 +174,7 @@ mod cf {
     }
 
     /// Creates a map of account ID to rating.
-    fn to_hash_map(entries: &ItemRatings) -> HashMap<u32, f32> {
+    fn to_hash_map(entries: &Ratings) -> HashMap<u32, f32> {
         let mut map = HashMap::new();
         for entry in entries {
             map.insert(entry.id, entry.rating);
@@ -187,56 +187,56 @@ mod cf {
         let mut rating_table = RatingTable::new();
         // Just My Luck
         rating_table.insert(101, vec![
-            AccountRating { id: 1, rating: 3.0 },
-            AccountRating { id: 2, rating: 1.5 },
-            AccountRating { id: 3, rating: 3.0 },
-            AccountRating { id: 4, rating: 2.0 }
+            Rating { id: 1, rating: 3.0 },
+            Rating { id: 2, rating: 1.5 },
+            Rating { id: 3, rating: 3.0 },
+            Rating { id: 4, rating: 2.0 }
         ]);
         // Lady in the Water
         rating_table.insert(102, vec![
-            AccountRating { id: 2, rating: 3.0 },
-            AccountRating { id: 5, rating: 3.0 },
-            AccountRating { id: 3, rating: 2.5 },
-            AccountRating { id: 6, rating: 2.5 },
-            AccountRating { id: 4, rating: 3.0 }
+            Rating { id: 2, rating: 3.0 },
+            Rating { id: 5, rating: 3.0 },
+            Rating { id: 3, rating: 2.5 },
+            Rating { id: 6, rating: 2.5 },
+            Rating { id: 4, rating: 3.0 }
         ]);
         // Snakes on a Plane
         rating_table.insert(103, vec![
-            AccountRating { id: 1, rating: 3.5 },
-            AccountRating { id: 2, rating: 3.5 },
-            AccountRating { id: 5, rating: 4.0 },
-            AccountRating { id: 3, rating: 3.5 },
-            AccountRating { id: 6, rating: 3.0 },
-            AccountRating { id: 4, rating: 4.0 },
-            AccountRating { id: 7, rating: 4.5 }
+            Rating { id: 1, rating: 3.5 },
+            Rating { id: 2, rating: 3.5 },
+            Rating { id: 5, rating: 4.0 },
+            Rating { id: 3, rating: 3.5 },
+            Rating { id: 6, rating: 3.0 },
+            Rating { id: 4, rating: 4.0 },
+            Rating { id: 7, rating: 4.5 }
         ]);
         // Superman Returns
         rating_table.insert(104, vec![
-            AccountRating { id: 1, rating: 4.0 },
-            AccountRating { id: 2, rating: 5.0 },
-            AccountRating { id: 5, rating: 5.0 },
-            AccountRating { id: 3, rating: 3.5 },
-            AccountRating { id: 6, rating: 3.5 },
-            AccountRating { id: 4, rating: 3.0 },
-            AccountRating { id: 7, rating: 4.0 }
+            Rating { id: 1, rating: 4.0 },
+            Rating { id: 2, rating: 5.0 },
+            Rating { id: 5, rating: 5.0 },
+            Rating { id: 3, rating: 3.5 },
+            Rating { id: 6, rating: 3.5 },
+            Rating { id: 4, rating: 3.0 },
+            Rating { id: 7, rating: 4.0 }
         ]);
         // The Night Listener
         rating_table.insert(105, vec![
-            AccountRating { id: 1, rating: 4.5 },
-            AccountRating { id: 2, rating: 3.0 },
-            AccountRating { id: 5, rating: 3.0 },
-            AccountRating { id: 3, rating: 3.0 },
-            AccountRating { id: 6, rating: 4.0 },
-            AccountRating { id: 4, rating: 3.0 }
+            Rating { id: 1, rating: 4.5 },
+            Rating { id: 2, rating: 3.0 },
+            Rating { id: 5, rating: 3.0 },
+            Rating { id: 3, rating: 3.0 },
+            Rating { id: 6, rating: 4.0 },
+            Rating { id: 4, rating: 3.0 }
         ]);
         // You, Me and Dupree
         rating_table.insert(106, vec![
-            AccountRating { id: 1, rating: 2.5 },
-            AccountRating { id: 2, rating: 3.5 },
-            AccountRating { id: 5, rating: 3.5 },
-            AccountRating { id: 3, rating: 2.5 },
-            AccountRating { id: 4, rating: 2.0 },
-            AccountRating { id: 7, rating: 1.0 }
+            Rating { id: 1, rating: 2.5 },
+            Rating { id: 2, rating: 3.5 },
+            Rating { id: 5, rating: 3.5 },
+            Rating { id: 3, rating: 2.5 },
+            Rating { id: 4, rating: 2.0 },
+            Rating { id: 7, rating: 1.0 }
         ]);
         let model = train(rating_table);
         assert!((model.get(&(102, 106)).unwrap() - 0.333333).abs() < 0.000001);
@@ -246,20 +246,20 @@ mod cf {
     fn test_pearson() {
         let correlation = pearson(
             &vec![
-                AccountRating { id: 1, rating: 2.5 },
-                AccountRating { id: 2, rating: 3.5 },
-                AccountRating { id: 3, rating: 3.0 },
-                AccountRating { id: 4, rating: 3.5 },
-                AccountRating { id: 5, rating: 2.5 },
-                AccountRating { id: 6, rating: 3.0 }
+                Rating { id: 1, rating: 2.5 },
+                Rating { id: 2, rating: 3.5 },
+                Rating { id: 3, rating: 3.0 },
+                Rating { id: 4, rating: 3.5 },
+                Rating { id: 5, rating: 2.5 },
+                Rating { id: 6, rating: 3.0 }
             ],
             &vec![
-                AccountRating { id: 1, rating: 3.0 },
-                AccountRating { id: 2, rating: 3.5 },
-                AccountRating { id: 3, rating: 1.5 },
-                AccountRating { id: 4, rating: 5.0 },
-                AccountRating { id: 5, rating: 3.5 },
-                AccountRating { id: 6, rating: 3.0 }
+                Rating { id: 1, rating: 3.0 },
+                Rating { id: 2, rating: 3.5 },
+                Rating { id: 3, rating: 1.5 },
+                Rating { id: 4, rating: 5.0 },
+                Rating { id: 5, rating: 3.5 },
+                Rating { id: 6, rating: 3.0 }
             ]
         );
         assert!(0.3960 < correlation && correlation < 0.3961);
@@ -281,7 +281,7 @@ mod trainer {
             if tank.battles < MIN_BATTLES {
                 continue;
             }
-            let entry = cf::AccountRating {
+            let entry = cf::Rating {
                 id: account.id,
                 rating: tank.wins as f32 / tank.battles as f32
             };
