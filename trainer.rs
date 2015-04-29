@@ -130,20 +130,28 @@ mod cf {
     }
 
     /// Predicts item rating by rated items.
-    pub fn predict(rating_table: RatingTable, account_ratings: Ratings, item: u32) -> f32 {
+    pub fn predict(model: Model, rated_items: Ratings, item: u32) -> f32 {
         let mut similarity_sum = 0.0;
         let mut rating_similarity_sum = 0.0;
-        // TODO.
+
+        for rated_item in rated_items {
+            let similarity = *model.get(&(item, rated_item.id)).unwrap();
+            if similarity > 0.0 {
+                similarity_sum += similarity;
+                rating_similarity_sum += similarity * rated_item.rating;
+            }
+        }
+
         rating_similarity_sum / similarity_sum
     }
 
-    fn pearson(entries_1: &Ratings, entries_2: &Ratings) -> f32 {
-        let ratings_1 = to_hash_map(entries_1);
-        let ratings_2 = to_hash_map(entries_2);
+    fn pearson(ratings_1: &Ratings, ratings_2: &Ratings) -> f32 {
+        let rating_map_1 = to_rating_map(ratings_1);
+        let rating_map_2 = to_rating_map(ratings_2);
 
         let mut shared_accounts = Vec::new();
-        for account_id in ratings_1.keys() {
-            if ratings_2.contains_key(account_id) {
+        for account_id in rating_map_1.keys() {
+            if rating_map_2.contains_key(account_id) {
                 shared_accounts.push(account_id)
             }
         }
@@ -158,8 +166,8 @@ mod cf {
         let mut p_sum = 0.0;
 
         for account_id in shared_accounts.iter() {
-            let rating_1 = *ratings_1.get(&account_id).unwrap();
-            let rating_2 = *ratings_2.get(&account_id).unwrap();
+            let rating_1 = *rating_map_1.get(&account_id).unwrap();
+            let rating_2 = *rating_map_2.get(&account_id).unwrap();
             sum_1 += rating_1;
             sum_2 += rating_2;
             sum_q1 += rating_1 * rating_1;
@@ -174,9 +182,9 @@ mod cf {
     }
 
     /// Creates a map of account ID to rating.
-    fn to_hash_map(entries: &Ratings) -> HashMap<u32, f32> {
+    fn to_rating_map(ratings: &Ratings) -> HashMap<u32, f32> {
         let mut map = HashMap::new();
-        for entry in entries {
+        for entry in ratings {
             map.insert(entry.id, entry.rating);
         }
         map
@@ -240,6 +248,21 @@ mod cf {
         ]);
         let model = train(rating_table);
         assert!((model.get(&(102, 106)).unwrap() - 0.333333).abs() < 0.000001);
+    }
+
+    #[test]
+    fn test_predict() {
+        let mut model = Model::new();
+        model.insert((4, 1), 0.182);
+        model.insert((4, 2), 0.103);
+        model.insert((4, 3), 0.148);
+        let rating = predict(model, vec![
+            Rating { id: 1, rating: 4.5 },
+            Rating { id: 2, rating: 4.0 },
+            Rating { id: 3, rating: 1.0 }
+        ], 4);
+        println!("Predicted rating: {}.", rating);
+        assert!(3.184 < rating && rating < 3.185);
     }
 
     #[test]
