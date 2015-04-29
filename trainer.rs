@@ -1,9 +1,9 @@
 /// Protocol Buffers format.
 mod protobuf {
-    use std::io;
+    use std::io::Read;
 
     /// Reads next UVarint.
-    pub fn read_uvarint<R: io::Read>(input: &mut R) -> Option<u32> {
+    pub fn read_uvarint<R: Read>(input: &mut R) -> Option<u32> {
         let mut value: u32 = 0;
         let mut shift: u32 = 0;
 
@@ -24,17 +24,19 @@ mod protobuf {
 
     #[test]
     fn test_read_uvarint() {
-        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x80])), None);
-        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x00])).unwrap(), 0);
-        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x03])).unwrap(), 3);
-        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x8E, 0x02])).unwrap(), 270);
-        assert_eq!(read_uvarint(&mut io::Cursor::new(vec![0x9E, 0xA7, 0x05])).unwrap(), 86942);
+        use std::io::Cursor;
+
+        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x80])), None);
+        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x00])).unwrap(), 0);
+        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x03])).unwrap(), 3);
+        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x8E, 0x02])).unwrap(), 270);
+        assert_eq!(read_uvarint(&mut Cursor::new(vec![0x9E, 0xA7, 0x05])).unwrap(), 86942);
     }
 }
 
 /// Statistics file reading.
 mod stats {
-    use std::io;
+    use std::io::Read;
 
     use protobuf;
 
@@ -52,7 +54,7 @@ mod stats {
     }
 
     /// Reads next account statistics.
-    pub fn read_account<R: io::Read>(input: &mut R) -> Option<Account> {
+    pub fn read_account<R: Read>(input: &mut R) -> Option<Account> {
         if !skip_account_header(input) {
             return None;
         }
@@ -70,14 +72,16 @@ mod stats {
 
     /// Skips account header.
     /// TODO: read 2 bytes at once.
-    fn skip_account_header<R: io::Read>(input: &mut R) -> bool {
+    fn skip_account_header<R: Read>(input: &mut R) -> bool {
         let mut buffer = [0u8; 1];
         input.read(&mut buffer).unwrap() == 1 && input.read(&mut buffer).unwrap() == 1
     }
 
     #[test]
     fn test_read_account() {
-        let account = read_account(&mut io::Cursor::new(vec![0x3e, 0x3e, 0x03, 0x01, 0x8E, 0x02, 0x9E, 0xA7, 0x05, 0x9D, 0xA7, 0x05])).unwrap();
+        use std::io::Cursor;
+
+        let account = read_account(&mut Cursor::new(vec![0x3e, 0x3e, 0x03, 0x01, 0x8E, 0x02, 0x9E, 0xA7, 0x05, 0x9D, 0xA7, 0x05])).unwrap();
         assert_eq!(account.id, 3);
         assert_eq!(account.tanks.len(), 1);
         assert_eq!(account.tanks[0].id, 270);
@@ -171,7 +175,62 @@ mod cf {
 
     #[test]
     fn test_train() {
-        // TODO.
+        let mut ratings = Ratings::new();
+        // Just My Luck
+        ratings.insert(101, vec![
+            Entry { account_id: 1, rating: 3.0 },
+            Entry { account_id: 2, rating: 1.5 },
+            Entry { account_id: 3, rating: 3.0 },
+            Entry { account_id: 4, rating: 2.0 }
+        ]);
+        // Lady in the Water
+        ratings.insert(102, vec![
+            Entry { account_id: 2, rating: 3.0 },
+            Entry { account_id: 5, rating: 3.0 },
+            Entry { account_id: 3, rating: 2.5 },
+            Entry { account_id: 6, rating: 2.5 },
+            Entry { account_id: 4, rating: 3.0 }
+        ]);
+        // Snakes on a Plane
+        ratings.insert(103, vec![
+            Entry { account_id: 1, rating: 3.5 },
+            Entry { account_id: 2, rating: 3.5 },
+            Entry { account_id: 5, rating: 4.0 },
+            Entry { account_id: 3, rating: 3.5 },
+            Entry { account_id: 6, rating: 3.0 },
+            Entry { account_id: 4, rating: 4.0 },
+            Entry { account_id: 7, rating: 4.5 }
+        ]);
+        // Superman Returns
+        ratings.insert(104, vec![
+            Entry { account_id: 1, rating: 4.0 },
+            Entry { account_id: 2, rating: 5.0 },
+            Entry { account_id: 5, rating: 5.0 },
+            Entry { account_id: 3, rating: 3.5 },
+            Entry { account_id: 6, rating: 3.5 },
+            Entry { account_id: 4, rating: 3.0 },
+            Entry { account_id: 7, rating: 4.0 }
+        ]);
+        // The Night Listener
+        ratings.insert(105, vec![
+            Entry { account_id: 1, rating: 4.5 },
+            Entry { account_id: 2, rating: 3.0 },
+            Entry { account_id: 5, rating: 3.0 },
+            Entry { account_id: 3, rating: 3.0 },
+            Entry { account_id: 6, rating: 4.0 },
+            Entry { account_id: 4, rating: 3.0 }
+        ]);
+        // You, Me and Dupree
+        ratings.insert(106, vec![
+            Entry { account_id: 1, rating: 2.5 },
+            Entry { account_id: 2, rating: 3.5 },
+            Entry { account_id: 5, rating: 3.5 },
+            Entry { account_id: 3, rating: 2.5 },
+            Entry { account_id: 4, rating: 2.0 },
+            Entry { account_id: 7, rating: 1.0 }
+        ]);
+        let model = train(ratings);
+        assert!((model.get(&(102, 106)).unwrap() - 0.333333).abs() < 0.000001);
     }
 
     #[test]
@@ -226,16 +285,17 @@ mod trainer {
     }
 
     /// Reads ratings from the input into hashmap.
-    pub fn read_ratings<R: Read>(input: &mut R, ratings: &mut cf::Ratings) {
+    pub fn read_ratings<R: Read>(input: &mut R) -> cf::Ratings {
+        let mut ratings = cf::Ratings::new();
         let mut tank_count = 0;
         for i in 1.. {
             if let Some(account) = stats::read_account(input) {
-                if i % 2 == 1 {
+                if i % 2 == 0 {
                     // Skip each second account because of no memory.
                     continue;
                 }
                 tank_count += account.tanks.len();
-                insert_account(ratings, account);
+                insert_account(&mut ratings, account);
             } else {
                 break;
             }
@@ -243,6 +303,7 @@ mod trainer {
                 println!("#{} reading | tanks: {}", i, tank_count);
             }
         }
+        ratings
     }
 
     #[test]
@@ -261,6 +322,16 @@ mod trainer {
         assert_eq!(ratings.get(&2).unwrap().len(), 2);
         assert_eq!(ratings.get(&3).unwrap().len(), 1);
     }
+
+    #[test]
+    fn test_read_ratings() {
+        use std::io::Cursor;
+
+        let ratings = read_ratings(&mut Cursor::new(
+            vec![0x3e, 0x3e, 0x03, 0x01, 0x8E, 0x02, 0x9E, 0xA7, 0x05, 0x9D, 0xA7, 0x05]));
+        assert_eq!(ratings.get(&270).unwrap()[0].account_id, 3);
+        assert!(ratings.get(&270).unwrap()[0].rating > 0.999988);
+    }
 }
 
 fn main() {
@@ -272,7 +343,6 @@ fn main() {
     let file = File::open(&Path::new(&args().nth(1).unwrap())).unwrap();
     let mut input = BufReader::new(&file);
 
-    let mut ratings = cf::Ratings::new();
-    trainer::read_ratings(&mut input, &mut ratings);
+    let ratings = trainer::read_ratings(&mut input);
     let model = cf::train(ratings);
 }
