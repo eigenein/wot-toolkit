@@ -95,40 +95,49 @@ mod cf {
     use std::collections::HashMap;
 
     /// Contains account ID and account's rating of the item.
-    pub struct Entry {
-        pub account_id: u32,
+    pub struct AccountRating {
+        pub id: u32,
         pub rating: f32
     }
 
-    /// Maps item ID to a vector of `Entry`.
-    pub type Ratings = HashMap<u32, Vec<Entry>>;
+    /// Vector of entries.
+    pub type ItemRatings = Vec<AccountRating>;
+
+    /// Maps item ID to a vector of `AccountRating`.
+    pub type RatingTable = HashMap<u32, ItemRatings>;
+
+    /// Maps a pair of items into their similarity.
+    pub type Model = HashMap<(u32, u32), f32>;
 
     /// Trains model.
     ///
     /// Computes similarity between each pair of items.
-    pub fn train(ratings: Ratings) -> HashMap<(u32, u32), f32> {
-        let mut similarities = HashMap::new();
-        for (i, item_1) in ratings.keys().enumerate() {
-            println!("#{}/{} training", i, ratings.len());
-            for item_2 in ratings.keys() {
+    pub fn train(rating_table: RatingTable) -> Model {
+        let mut model = Model::new();
+        for (i, item_1) in rating_table.keys().enumerate() {
+            println!("#{}/{} training", i, rating_table.len());
+            for item_2 in rating_table.keys() {
                 if item_1 >= item_2 {
                     continue;
                 }
-                let similarity = pearson(ratings.get(item_1).unwrap(), ratings.get(item_2).unwrap());
-                similarities.insert((*item_1, *item_2), similarity);
-                similarities.insert((*item_2, *item_1), similarity);
+                let similarity = pearson(rating_table.get(item_1).unwrap(), rating_table.get(item_2).unwrap());
+                model.insert((*item_1, *item_2), similarity);
+                model.insert((*item_2, *item_1), similarity);
             }
         }
-        println!("Training finished: {} entries in model.", similarities.len());
-        similarities
+        println!("Training finished: {} entries in model.", model.len());
+        model
     }
 
-    /// Predicts ratings for account.
-    pub fn predict() {
+    /// Predicts item rating by rated items.
+    pub fn predict(rating_table: RatingTable, item: u32) -> f32 {
+        let mut similarity_sum = 0.0;
+        let mut rating_similarity_sum = 0.0;
         // TODO.
+        rating_similarity_sum / similarity_sum
     }
 
-    fn pearson(entries_1: &Vec<Entry>, entries_2: &Vec<Entry>) -> f32 {
+    fn pearson(entries_1: &ItemRatings, entries_2: &ItemRatings) -> f32 {
         let ratings_1 = to_hash_map(entries_1);
         let ratings_2 = to_hash_map(entries_2);
 
@@ -165,71 +174,71 @@ mod cf {
     }
 
     /// Creates a map of account ID to rating.
-    fn to_hash_map(entries: &Vec<Entry>) -> HashMap<u32, f32> {
+    fn to_hash_map(entries: &ItemRatings) -> HashMap<u32, f32> {
         let mut map = HashMap::new();
         for entry in entries {
-            map.insert(entry.account_id, entry.rating);
+            map.insert(entry.id, entry.rating);
         }
         map
     }
 
     #[test]
     fn test_train() {
-        let mut ratings = Ratings::new();
+        let mut rating_table = RatingTable::new();
         // Just My Luck
-        ratings.insert(101, vec![
-            Entry { account_id: 1, rating: 3.0 },
-            Entry { account_id: 2, rating: 1.5 },
-            Entry { account_id: 3, rating: 3.0 },
-            Entry { account_id: 4, rating: 2.0 }
+        rating_table.insert(101, vec![
+            AccountRating { id: 1, rating: 3.0 },
+            AccountRating { id: 2, rating: 1.5 },
+            AccountRating { id: 3, rating: 3.0 },
+            AccountRating { id: 4, rating: 2.0 }
         ]);
         // Lady in the Water
-        ratings.insert(102, vec![
-            Entry { account_id: 2, rating: 3.0 },
-            Entry { account_id: 5, rating: 3.0 },
-            Entry { account_id: 3, rating: 2.5 },
-            Entry { account_id: 6, rating: 2.5 },
-            Entry { account_id: 4, rating: 3.0 }
+        rating_table.insert(102, vec![
+            AccountRating { id: 2, rating: 3.0 },
+            AccountRating { id: 5, rating: 3.0 },
+            AccountRating { id: 3, rating: 2.5 },
+            AccountRating { id: 6, rating: 2.5 },
+            AccountRating { id: 4, rating: 3.0 }
         ]);
         // Snakes on a Plane
-        ratings.insert(103, vec![
-            Entry { account_id: 1, rating: 3.5 },
-            Entry { account_id: 2, rating: 3.5 },
-            Entry { account_id: 5, rating: 4.0 },
-            Entry { account_id: 3, rating: 3.5 },
-            Entry { account_id: 6, rating: 3.0 },
-            Entry { account_id: 4, rating: 4.0 },
-            Entry { account_id: 7, rating: 4.5 }
+        rating_table.insert(103, vec![
+            AccountRating { id: 1, rating: 3.5 },
+            AccountRating { id: 2, rating: 3.5 },
+            AccountRating { id: 5, rating: 4.0 },
+            AccountRating { id: 3, rating: 3.5 },
+            AccountRating { id: 6, rating: 3.0 },
+            AccountRating { id: 4, rating: 4.0 },
+            AccountRating { id: 7, rating: 4.5 }
         ]);
         // Superman Returns
-        ratings.insert(104, vec![
-            Entry { account_id: 1, rating: 4.0 },
-            Entry { account_id: 2, rating: 5.0 },
-            Entry { account_id: 5, rating: 5.0 },
-            Entry { account_id: 3, rating: 3.5 },
-            Entry { account_id: 6, rating: 3.5 },
-            Entry { account_id: 4, rating: 3.0 },
-            Entry { account_id: 7, rating: 4.0 }
+        rating_table.insert(104, vec![
+            AccountRating { id: 1, rating: 4.0 },
+            AccountRating { id: 2, rating: 5.0 },
+            AccountRating { id: 5, rating: 5.0 },
+            AccountRating { id: 3, rating: 3.5 },
+            AccountRating { id: 6, rating: 3.5 },
+            AccountRating { id: 4, rating: 3.0 },
+            AccountRating { id: 7, rating: 4.0 }
         ]);
         // The Night Listener
-        ratings.insert(105, vec![
-            Entry { account_id: 1, rating: 4.5 },
-            Entry { account_id: 2, rating: 3.0 },
-            Entry { account_id: 5, rating: 3.0 },
-            Entry { account_id: 3, rating: 3.0 },
-            Entry { account_id: 6, rating: 4.0 },
-            Entry { account_id: 4, rating: 3.0 }
+        rating_table.insert(105, vec![
+            AccountRating { id: 1, rating: 4.5 },
+            AccountRating { id: 2, rating: 3.0 },
+            AccountRating { id: 5, rating: 3.0 },
+            AccountRating { id: 3, rating: 3.0 },
+            AccountRating { id: 6, rating: 4.0 },
+            AccountRating { id: 4, rating: 3.0 }
         ]);
         // You, Me and Dupree
-        ratings.insert(106, vec![
-            Entry { account_id: 1, rating: 2.5 },
-            Entry { account_id: 2, rating: 3.5 },
-            Entry { account_id: 5, rating: 3.5 },
-            Entry { account_id: 3, rating: 2.5 },
-            Entry { account_id: 4, rating: 2.0 },
-            Entry { account_id: 7, rating: 1.0 }
+        rating_table.insert(106, vec![
+            AccountRating { id: 1, rating: 2.5 },
+            AccountRating { id: 2, rating: 3.5 },
+            AccountRating { id: 5, rating: 3.5 },
+            AccountRating { id: 3, rating: 2.5 },
+            AccountRating { id: 4, rating: 2.0 },
+            AccountRating { id: 7, rating: 1.0 }
         ]);
-        let model = train(ratings);
+        let model = train(rating_table);
         assert!((model.get(&(102, 106)).unwrap() - 0.333333).abs() < 0.000001);
     }
 
@@ -237,20 +246,20 @@ mod cf {
     fn test_pearson() {
         let correlation = pearson(
             &vec![
-                Entry { account_id: 1, rating: 2.5 },
-                Entry { account_id: 2, rating: 3.5 },
-                Entry { account_id: 3, rating: 3.0 },
-                Entry { account_id: 4, rating: 3.5 },
-                Entry { account_id: 5, rating: 2.5 },
-                Entry { account_id: 6, rating: 3.0 }
+                AccountRating { id: 1, rating: 2.5 },
+                AccountRating { id: 2, rating: 3.5 },
+                AccountRating { id: 3, rating: 3.0 },
+                AccountRating { id: 4, rating: 3.5 },
+                AccountRating { id: 5, rating: 2.5 },
+                AccountRating { id: 6, rating: 3.0 }
             ],
             &vec![
-                Entry { account_id: 1, rating: 3.0 },
-                Entry { account_id: 2, rating: 3.5 },
-                Entry { account_id: 3, rating: 1.5 },
-                Entry { account_id: 4, rating: 5.0 },
-                Entry { account_id: 5, rating: 3.5 },
-                Entry { account_id: 6, rating: 3.0 }
+                AccountRating { id: 1, rating: 3.0 },
+                AccountRating { id: 2, rating: 3.5 },
+                AccountRating { id: 3, rating: 1.5 },
+                AccountRating { id: 4, rating: 5.0 },
+                AccountRating { id: 5, rating: 3.5 },
+                AccountRating { id: 6, rating: 3.0 }
             ]
         );
         assert!(0.3960 < correlation && correlation < 0.3961);
@@ -267,26 +276,26 @@ mod trainer {
     const MIN_BATTLES: u32 = 0;
 
     /// Inserts account into the ratings table.
-    pub fn insert_account(ratings: &mut cf::Ratings, account: stats::Account) {
+    pub fn insert_account(rating_table: &mut cf::RatingTable, account: stats::Account) {
         for tank in account.tanks {
             if tank.battles < MIN_BATTLES {
                 continue;
             }
-            let entry = cf::Entry {
-                account_id: account.id,
+            let entry = cf::AccountRating {
+                id: account.id,
                 rating: tank.wins as f32 / tank.battles as f32
             };
-            if let Some(entries) = ratings.get_mut(&tank.id) {
+            if let Some(entries) = rating_table.get_mut(&tank.id) {
                 entries.push(entry);
                 continue;
             }
-            ratings.insert(tank.id, vec![entry]);
+            rating_table.insert(tank.id, vec![entry]);
         }
     }
 
     /// Reads ratings from the input into hashmap.
-    pub fn read_ratings<R: Read>(input: &mut R) -> cf::Ratings {
-        let mut ratings = cf::Ratings::new();
+    pub fn read_ratings<R: Read>(input: &mut R) -> cf::RatingTable {
+        let mut rating_table = cf::RatingTable::new();
         let mut tank_count = 0;
         for i in 1.. {
             if let Some(account) = stats::read_account(input) {
@@ -295,7 +304,7 @@ mod trainer {
                     continue;
                 }
                 tank_count += account.tanks.len();
-                insert_account(&mut ratings, account);
+                insert_account(&mut rating_table, account);
             } else {
                 break;
             }
@@ -303,34 +312,34 @@ mod trainer {
                 println!("#{} reading | tanks: {}", i, tank_count);
             }
         }
-        ratings
+        rating_table
     }
 
     #[test]
     fn test_insert_account() {
-        let mut ratings = cf::Ratings::new();
-        insert_account(&mut ratings, stats::Account{ id: 100, tanks: vec![
+        let mut rating_table = cf::RatingTable::new();
+        insert_account(&mut rating_table, stats::Account{ id: 100, tanks: vec![
             stats::Tank { id: 1, battles: 10, wins: 5 },
             stats::Tank { id: 2, battles: 5, wins: 2}
         ]});
-        insert_account(&mut ratings, stats::Account{ id: 101, tanks: vec![
+        insert_account(&mut rating_table, stats::Account{ id: 101, tanks: vec![
             stats::Tank { id: 2, battles: 7, wins: 3 },
             stats::Tank { id: 3, battles: 50, wins: 1}
         ]});
-        assert_eq!(ratings.len(), 3);
-        assert_eq!(ratings.get(&1).unwrap().len(), 1);
-        assert_eq!(ratings.get(&2).unwrap().len(), 2);
-        assert_eq!(ratings.get(&3).unwrap().len(), 1);
+        assert_eq!(rating_table.len(), 3);
+        assert_eq!(rating_table.get(&1).unwrap().len(), 1);
+        assert_eq!(rating_table.get(&2).unwrap().len(), 2);
+        assert_eq!(rating_table.get(&3).unwrap().len(), 1);
     }
 
     #[test]
     fn test_read_ratings() {
         use std::io::Cursor;
 
-        let ratings = read_ratings(&mut Cursor::new(
+        let rating_table = read_ratings(&mut Cursor::new(
             vec![0x3e, 0x3e, 0x03, 0x01, 0x8E, 0x02, 0x9E, 0xA7, 0x05, 0x9D, 0xA7, 0x05]));
-        assert_eq!(ratings.get(&270).unwrap()[0].account_id, 3);
-        assert!(ratings.get(&270).unwrap()[0].rating > 0.999988);
+        assert_eq!(rating_table.get(&270).unwrap()[0].id, 3);
+        assert!(rating_table.get(&270).unwrap()[0].rating > 0.999988);
     }
 }
 
@@ -343,6 +352,6 @@ fn main() {
     let file = File::open(&Path::new(&args().nth(1).unwrap())).unwrap();
     let mut input = BufReader::new(&file);
 
-    let ratings = trainer::read_ratings(&mut input);
-    let model = cf::train(ratings);
+    let rating_table = trainer::read_ratings(&mut input);
+    let model = cf::train(rating_table);
 }
