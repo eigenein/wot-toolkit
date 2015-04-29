@@ -26,6 +26,7 @@ AUTO_ADAPT_REQUEST_COUNT = 150
 MAX_ACCOUNTS_PER_REQUEST = 100
 MAX_BUFFER_SIZE = 10000
 MIN_PENDING_COUNT = 1
+DEFAULT_PENDING_COUNT = 8
 MAX_PENDING_COUNT = 32
 
 
@@ -67,7 +68,7 @@ def get(app_id: str, start_id: int, end_id: int, output):
     """Get account statistics dump."""
     api = Api(app_id)
     consumer = AccountTanksConsumer(start_id, output)
-    max_pending_count = MIN_PENDING_COUNT
+    max_pending_count = DEFAULT_PENDING_COUNT
     pending = set()
     start_time = time()
     # Main loop.
