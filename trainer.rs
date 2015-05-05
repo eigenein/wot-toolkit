@@ -130,7 +130,7 @@ mod cf {
     }
 
     /// Predicts item rating by rated items.
-    pub fn predict(model: Model, rated_items: Ratings, item: u32) -> f32 {
+    pub fn predict(model: &Model, rated_items: &Ratings, item: u32) -> f32 {
         let mut similarity_sum = 0.0;
         let mut rating_similarity_sum = 0.0;
 
@@ -256,7 +256,7 @@ mod cf {
         model.insert((4, 1), 0.182);
         model.insert((4, 2), 0.103);
         model.insert((4, 3), 0.148);
-        let rating = predict(model, vec![
+        let rating = predict(&model, &vec![
             Rating { id: 1, rating: 4.5 },
             Rating { id: 2, rating: 4.0 },
             Rating { id: 3, rating: 1.0 }
@@ -296,7 +296,7 @@ mod trainer {
     use cf;
     use stats;
 
-    const MIN_BATTLES: u32 = 0;
+    const MIN_BATTLES: u32 = 10;
 
     /// Inserts account into the ratings table.
     pub fn insert_account(rating_table: &mut cf::RatingTable, account: stats::Account, skip_odd: bool) {
@@ -338,20 +338,63 @@ mod trainer {
         rating_table
     }
 
+    pub fn evaluate<R: Read>(input: &mut R, model: cf::Model) -> f32 {
+        let mut total_count = 0;
+        let mut true_count = 0;
+        
+        for i in 1.. {
+            if let Some(account) = stats::read_account(input) {
+                let mut rated_items = cf::Ratings::new();
+                let mut account_battles = 0;
+                let mut account_wins = 0;
+
+                for (i, tank) in account.tanks.iter().enumerate() {
+                    if i % 2 == 0 && tank.battles >= MIN_BATTLES {
+                        rated_items.push(cf::Rating { id: tank.id, rating: tank.wins as f32 / tank.battles as f32 });
+                        account_battles += tank.battles;
+                        account_wins += tank.wins;
+                    }
+                }
+
+                let account_rating = account_wins as f32 / account_battles as f32;
+                for (i, tank) in account.tanks.iter().enumerate() {
+                    if i % 2 == 1 && tank.battles >= MIN_BATTLES {
+                        let true_rating = tank.wins as f32 / tank.battles as f32;
+                        let predicted_rating = cf::predict(&model, &rated_items, tank.id);
+                        total_count += 1;
+                        if (true_rating > account_rating) == (predicted_rating > account_rating) {
+                            true_count += 1;
+                        }
+                    }
+                }
+            } else {
+                break;
+            }
+            if i % 100000 == 0 {
+                println!(
+                    "#{} evaluating | total: {} | true: {} | precision: {}",
+                    i, total_count, true_count, 100.0 * true_count as f32 / total_count as f32
+                );
+            }
+        }
+
+        true_count as f32 / total_count as f32
+    }
+
     #[test]
     fn test_insert_account() {
         let mut rating_table = cf::RatingTable::new();
         insert_account(&mut rating_table, stats::Account{ id: 100, tanks: vec![
-            stats::Tank { id: 1, battles: 10, wins: 5 },
-            stats::Tank { id: 2, battles: 5, wins: 2 }
+            stats::Tank { id: 1, battles: 1000, wins: 500 },
+            stats::Tank { id: 2, battles: 500, wins: 200 }
         ]}, false);
         insert_account(&mut rating_table, stats::Account{ id: 101, tanks: vec![
-            stats::Tank { id: 2, battles: 7, wins: 3 },
-            stats::Tank { id: 3, battles: 50, wins: 1 }
+            stats::Tank { id: 2, battles: 700, wins: 300 },
+            stats::Tank { id: 3, battles: 500, wins: 100 }
         ]}, false);
         insert_account(&mut rating_table, stats::Account{ id: 102, tanks: vec![
-            stats::Tank { id: 4, battles: 10, wins: 15 },
-            stats::Tank { id: 5, battles: 40, wins: 20 }
+            stats::Tank { id: 4, battles: 100, wins: 150 },
+            stats::Tank { id: 5, battles: 400, wins: 200 }
         ]}, true);
         assert_eq!(rating_table.len(), 4);
         assert_eq!(rating_table.get(&1).unwrap().len(), 1);
@@ -373,7 +416,7 @@ mod trainer {
 
 fn main() {
     use std::env::args;
-    use std::io::BufReader;
+    use std::io::{BufReader, Seek, SeekFrom};
     use std::fs::File;
     use std::path::Path;
 
@@ -382,4 +425,8 @@ fn main() {
 
     let rating_table = trainer::read_ratings(&mut input);
     let model = cf::train(rating_table);
+    input.seek(SeekFrom::Start(0)).unwrap();
+    let precision = trainer::evaluate(&mut input, model);
+
+    println!("Precision: {}.", 100.0 * precision);
 }
