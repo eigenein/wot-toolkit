@@ -299,9 +299,13 @@ mod trainer {
     const MIN_BATTLES: u32 = 0;
 
     /// Inserts account into the ratings table.
-    pub fn insert_account(rating_table: &mut cf::RatingTable, account: stats::Account) {
-        for tank in account.tanks {
+    pub fn insert_account(rating_table: &mut cf::RatingTable, account: stats::Account, skip_odd: bool) {
+        for (i, tank) in account.tanks.iter().enumerate() {
             if tank.battles < MIN_BATTLES {
+                continue;
+            }
+            if skip_odd && (i % 2 == 1) {
+                // This one is for test set.
                 continue;
             }
             let entry = cf::Rating {
@@ -322,12 +326,8 @@ mod trainer {
         let mut tank_count = 0;
         for i in 1.. {
             if let Some(account) = stats::read_account(input) {
-                if i % 2 == 0 {
-                    // Skip each second account because of no memory.
-                    continue;
-                }
                 tank_count += account.tanks.len();
-                insert_account(&mut rating_table, account);
+                insert_account(&mut rating_table, account, true);
             } else {
                 break;
             }
@@ -343,16 +343,21 @@ mod trainer {
         let mut rating_table = cf::RatingTable::new();
         insert_account(&mut rating_table, stats::Account{ id: 100, tanks: vec![
             stats::Tank { id: 1, battles: 10, wins: 5 },
-            stats::Tank { id: 2, battles: 5, wins: 2}
-        ]});
+            stats::Tank { id: 2, battles: 5, wins: 2 }
+        ]}, false);
         insert_account(&mut rating_table, stats::Account{ id: 101, tanks: vec![
             stats::Tank { id: 2, battles: 7, wins: 3 },
-            stats::Tank { id: 3, battles: 50, wins: 1}
-        ]});
-        assert_eq!(rating_table.len(), 3);
+            stats::Tank { id: 3, battles: 50, wins: 1 }
+        ]}, false);
+        insert_account(&mut rating_table, stats::Account{ id: 102, tanks: vec![
+            stats::Tank { id: 4, battles: 10, wins: 15 },
+            stats::Tank { id: 5, battles: 40, wins: 20 }
+        ]}, true);
+        assert_eq!(rating_table.len(), 4);
         assert_eq!(rating_table.get(&1).unwrap().len(), 1);
         assert_eq!(rating_table.get(&2).unwrap().len(), 2);
         assert_eq!(rating_table.get(&3).unwrap().len(), 1);
+        assert_eq!(rating_table.get(&4).unwrap().len(), 1);
     }
 
     #[test]
