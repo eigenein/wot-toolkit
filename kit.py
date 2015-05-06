@@ -404,8 +404,8 @@ def enumerate_diff(old_iterator, new_iterator):
             yield new
             new = safe_next(new_iterator)
         else:
-            if new.battles > old.battles:
-                yield AccountTank(new.account_id, new.tank_id, new.battles - old.battles, max(new.wins - old.wins, 0))
+            if new.battles > old.battles and new.wins >= old.wins:
+                yield AccountTank(new.account_id, new.tank_id, new.battles - old.battles, new.wins - old.wins)
             old, new = safe_next(old_iterator), safe_next(new_iterator)
 
 
