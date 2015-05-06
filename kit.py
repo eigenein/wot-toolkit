@@ -304,6 +304,7 @@ def adapt_max_pending_count(api: Api, max_pending_count: int) -> int:
 
 def write_uvarint(value: int, fp):
     """Writes unsigned varint value."""
+    assert value >= 0, value
     while True:
         value, byte = value >> 7, value & 0x7F
         if value:
@@ -403,7 +404,7 @@ def enumerate_diff(old_iterator, new_iterator):
             new = safe_next(new_iterator)
         else:
             if new.battles > old.battles:
-                yield AccountTank(new.account_id, new.tank_id, new.battles - old.battles, new.wins - old.wins)
+                yield AccountTank(new.account_id, new.tank_id, new.battles - old.battles, max(new.wins - old.wins, 0))
             old, new = safe_next(old_iterator), safe_next(new_iterator)
 
 
