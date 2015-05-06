@@ -41,6 +41,7 @@ def main(log_file):
         format="%(asctime)s (%(module)s) %(levelname)s %(message)s",
         level=logging.INFO,
         stream=log_file,
+        datefmt="%H:%M:%S",
     )
 
 
