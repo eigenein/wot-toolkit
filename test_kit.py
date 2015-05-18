@@ -59,6 +59,7 @@ def test_enumerate_diff():
         kit.AccountTank(1, 3, 2, 1),
         kit.AccountTank(2, 4, 1, 0),
         kit.AccountTank(3, 1, 10, 5),
+        kit.AccountTank(4, 5, 3, 1),
     ]
     new = [
         kit.AccountTank(1, 2, 12, 6),
@@ -66,6 +67,7 @@ def test_enumerate_diff():
         kit.AccountTank(2, 4, 1, 0),
         kit.AccountTank(2, 5, 1, 0),
         kit.AccountTank(3, 1, 11, 4),  # wins decremented
+        kit.AccountTank(4, 5, 4, 3),  # wins incremented by a larger value
     ]
     expected = [
         kit.AccountTank(1, 2, 12, 6),
