@@ -33,6 +33,7 @@ MAX_PENDING_COUNT = 32
 
 TANK_ID_BLACKLIST = {64513, 64833, 64545}
 
+
 # Entry point.
 # ------------------------------------------------------------------------------
 
@@ -233,6 +234,7 @@ def renew(app_id, output):
     output.write("TANKS = ")
     pretty_print(tanks, output)
     logging.info("Well done.")
+
 
 # API helper.
 # ------------------------------------------------------------------------------
