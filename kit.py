@@ -3,11 +3,13 @@
 
 import asyncio
 import collections
+import csv
 import http.client
 import itertools
 import logging
 import os
 import sys
+import typing
 
 from datetime import datetime, timedelta
 from functools import wraps
@@ -17,6 +19,8 @@ from random import normalvariate
 
 import aiohttp
 import click
+
+import encyclopedia
 
 
 # Pre-defines.
@@ -132,6 +136,33 @@ def cat(input_):
         account_id, tanks = stats
         for tank in tanks:
             print(account_id, *tank)
+
+
+@main.command("csv")
+@click.argument("input_", type=click.File("rb"))
+@click.argument("output", type=click.File("wt", encoding="utf-8"))
+def to_csv(input_: typing.io.BinaryIO, output: typing.io.TextIO):
+    """Convert dump to CSV."""
+    all_tanks = sorted(encyclopedia.TANKS.items())
+
+    writer = csv.writer(output)
+    writer.writerow(itertools.chain(["account_id"], *(
+        [tank["name"] + ":battles", tank["name"] + ":wins"]
+        for _, tank in all_tanks
+    )))
+
+    while True:
+        stats = read_account_stats(input_)
+        if not stats:
+            break  # end of file
+        account_id, tanks = stats
+        account_tanks = {tank.tank_id: tank for tank in tanks}
+        writer.writerow(itertools.chain([account_id], *(
+            [account_tanks[tank_id].battles, account_tanks[tank_id].wins]
+            if tank_id in account_tanks
+            else ["", ""]
+            for tank_id, _ in all_tanks
+        )))
 
 
 @main.command()
@@ -471,7 +502,7 @@ def write_account_stats(account_id: int, tanks, fp) -> int:
     return len(tanks)
 
 
-def read_account_stats(fp):
+def read_account_stats(fp) -> typing.Tuple[int, typing.List["Tank"]]:
     """Reads account stats from file."""
     if not fp.read(2):
         return  # end of file
