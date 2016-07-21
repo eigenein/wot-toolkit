@@ -79,7 +79,7 @@ def get(app_id: str, start_id: int, end_id: int, output):
     # Main loop.
     for account_ids in chop(range(start_id, end_id + 1), MAX_IDS_PER_REQUEST):
         # Acquire buffer and schedule request.
-        pending.add(asyncio.async(api.account_tanks(account_ids)))
+        pending.add(asyncio.ensure_future(api.account_tanks(account_ids)))
         if len(pending) < max_pending_count:
             continue
         # Wait for the request completion.
@@ -103,6 +103,7 @@ def get(app_id: str, start_id: int, end_id: int, output):
     if pending:
         done, _ = yield from asyncio.wait(pending)
         consumer.consume_all(done)
+    api.close()
     assert not consumer.buffer, "there are buffered results left"
     # Print total statistics.
     logging.info("Finished in %s.", timedelta(seconds=time() - start_time))
@@ -176,7 +177,8 @@ def renew(app_id, output):
     logging.info("%s tanks (with blacklisted).", len(tanks))
     # Delete blacklisted tanks.
     for tank_id in TANK_ID_BLACKLIST:
-        del tanks[tank_id]
+        if tank_id in tanks:
+            del tanks[tank_id]
     logging.info("%s tanks.", len(tanks))
     # Get tank infos.
     logging.info("Getting tank infos.")
@@ -213,6 +215,7 @@ def renew(app_id, output):
         tankinfos = yield from api.encyclopedia_tankinfo(tank_ids, fields=fields)
         for tank_id, tankinfo in tankinfos:
             tanks[tank_id].update(tankinfo)
+    api.close()
     # Patch strange names.
     tanks[3601].update({"short_name_i18n": "Pz.Jag. I", "name_i18n": "Panzerjager I"})
     tanks[4417]["short_name_i18n"] = "Renault G1R"
@@ -244,7 +247,7 @@ class Api:
 
     def __init__(self, app_id: str):
         self.app_id = app_id
-        self.connector = aiohttp.TCPConnector()
+        self.session = aiohttp.ClientSession(connector=aiohttp.TCPConnector())
         self.reset_error_rate()
 
     def reset_error_rate(self):
@@ -293,11 +296,10 @@ class Api:
         backoff = exponential_backoff(0.1, 600.0, 2.0, 0.1)
         for sleep_time in backoff:
             try:
-                response = yield from asyncio.wait_for(aiohttp.request(
+                response = yield from asyncio.wait_for(self.session.request(
                     "GET",
                     "http://api.worldoftanks.ru/wot/%s/" % method,
                     params=params,
-                    connector=self.connector,
                 ), 10.0)
             except asyncio.TimeoutError:
                 logging.warning("Timeout.")
@@ -328,6 +330,9 @@ class Api:
     @staticmethod
     def fix_encyclopedia_data(data: dict) -> dict:
         return [(int(tank_id), tank) for tank_id, tank in data.items()]
+
+    def close(self):
+        self.session.close()
 
 
 # Buffering.
